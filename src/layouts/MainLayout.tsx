@@ -1,17 +1,13 @@
-import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import { Outlet } from "react-router-dom";
 
 export const MainLayout = () => {
   return (
-    <div className="flex flex-col h-screen">
+    <div className="min-h-screen flex flex-col">
       <Header />
-
-        <main className="flex-grow">
-          <Outlet />
-        </main>
-
-      <Footer />
+      <div className="flex-1 container py-6">
+        <Outlet />
+      </div>
     </div>
   );
 };

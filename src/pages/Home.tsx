@@ -1,10 +1,8 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BookOpen, Brain, FileText, MessageSquare, School, Sun, Moon } from "lucide-react";
-import { useTheme } from "@/components/ThemeProvider";
+import { ArrowRight, BookOpen, Brain, FileText, MessageSquare, School } from "lucide-react";
 
 const Home = () => {
-  const { theme, setTheme } = useTheme();
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -28,35 +26,12 @@ const Home = () => {
     }
   };
 
-  const glowVariants = {
-    hover: {
-      scale: 1.05,
-      boxShadow: "0 0 20px rgba(147, 51, 234, 0.5)",
-      transition: {
-        duration: 0.3,
-        yoyo: Infinity
-      }
-    }
-  };
+
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background via-background/95 to-secondary/20">
-      {/* Theme Toggle */}
-      <motion.button
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        className="fixed top-20 right-4 p-3 rounded-full bg-black/20 hover:bg-black/30 backdrop-blur-sm border border-white/10 z-50"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        aria-label="Toggle theme"
-      >
-        {theme === "dark" ? 
-          <Sun className="h-5 w-5 text-yellow-400" /> : 
-          <Moon className="h-5 w-5 text-primary" />
-        }
-      </motion.button>
-
       {/* Hero Section */}
-      <section className="relative py-20 lg:py-32 overflow-hidden">
+      <section className="relative py-20 px-14 lg:py-32 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(147,51,234,0.1),transparent_50%)]" />
         <motion.div 
           className="container px-4 mx-auto relative"
@@ -149,7 +124,7 @@ const Home = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 relative">
+      <section className="py-20 relative px-14">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(147,51,234,0.1),transparent_50%)]" />
         <motion.div 
           className="container px-4 mx-auto relative"

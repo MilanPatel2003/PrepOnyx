@@ -1,3 +1,5 @@
+import { fontFamily } from "tailwindcss/defaultTheme";
+
 /** @type {import('tailwindcss').Config} */
 export default {
     darkMode: ["class"],
@@ -6,6 +8,13 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
+  	container: {
+  		center: true,
+  		padding: "2rem",
+  		screens: {
+  			"2xl": "1400px",
+  		},
+  	},
   	extend: {
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -53,7 +62,11 @@ export default {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			}
-  		}
+  		},
+  		backgroundImage: {
+  			'grid-slate-200': "linear-gradient(to right, rgb(226 232 240 / 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgb(226 232 240 / 0.1) 1px, transparent 1px)",
+  			'grid-slate-50': "linear-gradient(to right, rgb(248 250 252 / 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgb(248 250 252 / 0.05) 1px, transparent 1px)",
+  		},
   	}
   },
   plugins: [require("tailwindcss-animate")],

@@ -3,57 +3,61 @@
 @tailwind utilities;
 @layer base {
   :root {
-    --background: 220 33% 98%;
-    --foreground: 224 71.4% 4.1%;
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
-    --primary: 250 20% 45%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 220 14.3% 95.9%;
-    --secondary-foreground: 220.9 39.3% 11%;
-    --muted: 220 14.3% 95.9%;
-    --muted-foreground: 220 8.9% 46.1%;
-    --accent: 250 20% 45%;
-    --accent-foreground: 220.9 39.3% 11%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 265 85% 65%;          /* Darker purple */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 5% 93%;         /* Slightly darker gray */
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 265 85% 65%;           /* Matching primary */
+    --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 250 20% 45%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 265 85% 65%;
+    --radius: 0.5rem;
+    
+    /* Darker data visualization colors */
+    --chart-1: 229 75% 48%;        /* Darker Electric blue */
+    --chart-2: 245 75% 48%;        /* Darker Tech purple */
+    --chart-3: 200 95% 35%;        /* Darker Cyan */
+    --chart-4: 155 65% 35%;        /* Darker Emerald */
+    --chart-5: 270 65% 48%;        /* Darker Deep purple */
   }
   .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 20% 98%;
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 250 15% 40%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 215 27.9% 16.9%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 250 15% 40%;
-    --accent-foreground: 210 20% 98%;
+    --background: 240 10% 3.9%;      /* Darker background */
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;            /* Darker card */
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 265 85% 65%;          /* Keeping purple but slightly darker */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 3.7% 12%;       /* Darker secondary */
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 12%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 265 85% 65%;           /* Matching primary */
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 250 15% 40%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 265 85% 65%;
+
+    /* Darker visualization colors */
+    --chart-1: 229 75% 48%;
+    --chart-2: 245 75% 48%;
+    --chart-3: 200 95% 35%;
+    --chart-4: 155 65% 35%;
+    --chart-5: 270 65% 48%;
   }
 }
 @layer base {
@@ -61,16 +65,122 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground transition-colors duration-300;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 @layer utilities {
-  .glow {
-    box-shadow: 0 0 20px theme('colors.primary.DEFAULT');
+  /* Updated hover effects */
+  .hover-accent {
+    @apply hover:bg-accent/10 transition-colors duration-200;
   }
   
-  .text-glow {
-    text-shadow: 0 0 10px theme('colors.primary.DEFAULT');
+  .dark .hover-accent {
+    @apply hover:bg-accent/20;
+  }
+
+  /* Updated glass effect */
+  .glass {
+    @apply bg-background/40 backdrop-blur-xl border border-border/50;
+  }
+
+  .dark .glass {
+    @apply bg-background/30 border-white/[0.08];
+  }
+
+  /* Updated glow effects */
+  .glow-subtle {
+    @apply shadow-[0_0_15px_theme(colors.primary.DEFAULT/15)];
+  }
+
+  .dark .glow-subtle {
+    @apply shadow-[0_0_20px_theme(colors.primary.DEFAULT/20)];
+  }
+
+  /* Updated card styles */
+  .card-modern {
+    @apply bg-card/80 backdrop-blur-md border border-border/50 
+           shadow-[0_8px_16px_theme(colors.primary.DEFAULT/8)]
+           hover:shadow-[0_8px_20px_theme(colors.primary.DEFAULT/15)]
+           transition-all duration-300;
+  }
+
+  .dark .card-modern {
+    @apply bg-card/30 border-white/[0.06]
+           shadow-[0_8px_16px_rgba(0,0,0,0.5)]
+           hover:shadow-[0_8px_20px_theme(colors.primary.DEFAULT/15)];
+  }
+
+  /* Tech gradients */
+  .gradient-tech {
+    @apply bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_auto]
+           animate-shimmer;
+  }
+
+  .gradient-surface {
+    @apply bg-gradient-to-b from-background via-background/80 to-secondary/30;
+  }
+
+  .dark .gradient-surface {
+    @apply from-background via-card to-background;
+  }
+
+  /* Animated background */
+  @keyframes shimmer {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 8s infinite;
+  }
+
+  /* Gradient effects */
+  .gradient-primary {
+    @apply bg-gradient-to-r from-primary via-accent to-primary;
+  }
+
+  .gradient-border {
+    @apply border border-transparent bg-gradient-to-r from-primary/50 via-accent/50 to-primary/50;
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  /* Card effects */
+  .card-highlight {
+    @apply hover:border-accent/50 transition-colors duration-300;
+  }
+
+  .dark .card-highlight {
+    @apply hover:border-accent/30;
+  }
+
+  /* Animation */
+  .animate-gradient {
+    animation: gradient 8s linear infinite;
+    background-size: 200% auto;
+  }
+
+  @keyframes gradient {
+    0% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+    100% { background-position: 0% center; }
+  }
+
+  /* Button effects */
+  .button-glow {
+    @apply relative;
+  }
+
+  .button-glow::after {
+    @apply absolute inset-0 rounded-[inherit] opacity-0 transition-opacity duration-500;
+    content: '';
+    box-shadow: 0 0 20px theme('colors.primary.DEFAULT');
+  }
+
+  .button-glow:hover::after {
+    @apply opacity-100;
   }
 }

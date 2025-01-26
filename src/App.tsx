@@ -8,6 +8,14 @@ import SignInPage from '@/pages/SignInPage'
 import SignUpPage from '@/pages/SignUpPage'
 import ProtectRoutes from '@/layouts/ProtectedRoutes'
 import { MainLayout } from '@/layouts/MainLayout'
+import MathNotes from './pages/dashboard/MathNotes'
+
+// Import your feature pages
+// import MockInterview from '@/pages/dashboard/MockInterview'
+// import PdfAnalyzer from '@/pages/dashboard/PdfAnalyzer'
+// import CourseGenerator from '@/pages/dashboard/CourseGenerator'
+// import Flashcards from '@/pages/dashboard/Flashcards'
+// import Profile from '@/pages/dashboard/Profile'
 
 const App = () => {
   return (
@@ -21,10 +29,11 @@ const App = () => {
 
           {/* auth routes */}
           <Route element={<AuthLayout />}>
-            <Route path='/signin/*' element={<SignInPage/>}></Route>
-            <Route path='/signup/*' element={<SignUpPage/>}></Route>
+            <Route path='/signin/*' element={<SignInPage/>} />
+            <Route path='/signup/*' element={<SignUpPage/>} />
           </Route>
-          {/* private routes */}
+
+          {/* protected routes */}
           <Route
             element={
               <ProtectRoutes>
@@ -32,6 +41,14 @@ const App = () => {
               </ProtectRoutes>
             }
           >
+            <Route path="/dashboard">
+              <Route path="math-notes" element={<MathNotes />} />
+              {/* <Route path="mock-interview" element={<MockInterview />} />
+              <Route path="pdf-analyzer" element={<PdfAnalyzer />} />
+              <Route path="course-generator" element={<CourseGenerator />} />
+              <Route path="flashcards" element={<Flashcards />} />
+              <Route path="profile" element={<Profile />} /> */}
+            </Route>
           </Route>
         </Routes>
       </Router>
