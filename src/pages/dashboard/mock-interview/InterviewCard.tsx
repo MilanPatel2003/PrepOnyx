@@ -14,7 +14,7 @@ const InterviewCard = ({ interview }: InterviewCardProps) => {
   const navigate = useNavigate();
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 hover:border-primary/20">
+    <Card className="group hover:shadow-lg transition-all duration-300 hover:border-primary/20 flex flex-col">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
@@ -26,7 +26,7 @@ const InterviewCard = ({ interview }: InterviewCardProps) => {
           <Badge variant="secondary">{interview.experience}+ YOE</Badge>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-grow">
         <p className="text-sm text-muted-foreground line-clamp-2">
           {interview.description}
         </p>
@@ -38,33 +38,32 @@ const InterviewCard = ({ interview }: InterviewCardProps) => {
           ))}
         </div>
       </CardContent>
-      <CardFooter className="gap-2">
+      <CardFooter className="flex flex-wrap gap-2 p-4">
         <Button
           variant="outline"
           size="sm"
-          className="flex-1"
+          className="flex-1 min-w-[80px]"
           onClick={() => navigate(`/dashboard/mock-interview/${interview.id}`)}
         >
-          <Eye className="w-4 h-4 mr-2" />
-          View
+          <Eye className="w-4 h-4" />
+          <span className="hidden sm:inline ml-2">View</span>
         </Button>
         <Button
           variant="outline"
           size="sm"
-          className="flex-1"
+          className="flex-1 min-w-[80px]"
           onClick={() => navigate(`/dashboard/mock-interview/${interview.id}/feedback`)}
         >
-          <MessageSquare className="w-4 h-4 mr-2" />
-          Feedback
+          <MessageSquare className="w-4 h-4" />
+          <span className="hidden sm:inline ml-2">Feedback</span>
         </Button>
         <Button
           size="sm"
-          className="flex-1"
-          
+          className="flex-1 min-w-[80px]"
           onClick={() => navigate(`/dashboard/mock-interview/${interview.id}/loadpage`)}
         >
-          <Play className="w-4 h-4 mr-2" />
-          Start
+          <Play className="w-4 h-4" />
+          <span className="hidden sm:inline ml-2">Start</span>
         </Button>
       </CardFooter>
     </Card>

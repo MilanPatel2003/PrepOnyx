@@ -42,7 +42,7 @@ const MockInterview = () => {
   }, [userId]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
       <Heading
         title="AI Mock Interview"
         description="Simulate interviews based on your resume with AI-generated questions and detailed feedback."
@@ -51,11 +51,11 @@ const MockInterview = () => {
       />
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {[...Array(3)].map((_, i) => (
             <div
               key={i}
-              className="h-[300px] rounded-lg bg-muted animate-pulse"
+              className="h-[250px] sm:h-[280px] lg:h-[300px] rounded-lg bg-muted animate-pulse"
             />
           ))}
         </div>
@@ -70,7 +70,7 @@ const MockInterview = () => {
           }}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {interviews.map((interview) => (
             <InterviewCard key={interview.id} interview={interview} />
           ))}

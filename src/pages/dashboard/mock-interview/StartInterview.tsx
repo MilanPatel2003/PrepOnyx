@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Webcam from 'react-webcam';
-import { Mic, MicOff, Play, Video, VideoOff, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Play, Video, VideoOff, Loader2, MessageSquare, Lightbulb, CheckCircle2, Star } from 'lucide-react';
 import { LoaderPage } from '@/pages/LoaderPage';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import {  useUser } from '@clerk/clerk-react';
@@ -279,135 +279,227 @@ const StartInterview = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <div className="flex flex-col space-y-4">
-        <h1 className="text-3xl font-bold">{interview.position}</h1>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="default">{interview.experience}+ YOE</Badge>
-          {interview.techStack.split(',').map((tech, index) => (
-            <Badge key={index} variant="secondary">{tech.trim()}</Badge>
-          ))}
-        </div>
-      </div>
-
-      <Tabs defaultValue="interview" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="interview">Interview</TabsTrigger>
-          <TabsTrigger value="preparation">Preparation</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="interview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Webcam Section */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <h3 className="text-lg font-semibold">Video Feed</h3>
-                <Button variant="outline" size="icon" onClick={toggleWebcam}>
-                  {isWebcamOn ? <VideoOff className="h-4 w-4" /> : <Video className="h-4 w-4" />}
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {isWebcamOn && (
-                  <Webcam
-                    ref={webcamRef}
-                    audio={false}
-                    mirrored
-                    className="w-full rounded-lg"
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Question and Answer Section */}
-            <Card>
-              <CardHeader>
-                <h3 className="text-lg font-semibold">
-                  Question {currentQuestionIndex + 1} of {interview.questions.length}
-                </h3>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="max-h-[200px] overflow-y-auto rounded-lg p-4 bg-muted/50">
-                  <p className="text-lg break-words whitespace-pre-wrap">
-                    {interview.questions[currentQuestionIndex]?.question.split(' ').map((word, index) => (
-                      <span
-                        key={index}
-                        className={`${
-                          highlightedWords.includes(word)
-                            ? 'bg-primary/20 text-primary'
-                            : ''
-                        } transition-colors duration-200 mr-1 inline-block`}
-                      >
-                        {word}
-                      </span>
-                    ))}
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Button onClick={speakQuestion} disabled={isSpeaking}>
-                      <Play className="h-4 w-4 mr-2" />
-                      {isSpeaking ? 'Speaking...' : 'Replay Question'}
-                    </Button>
-                    <Button onClick={toggleRecording} variant={isRecording ? "destructive" : "default"}>
-                      {isRecording ? (
-                        <>
-                          <MicOff className="h-4 w-4 mr-2" />
-                          Stop Recording
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="h-4 w-4 mr-2" />
-                          Start Recording
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  
-                  <div className="min-h-[100px] p-3 border rounded-lg bg-muted/50">
-                    {transcript || "Your answer will appear here..."}
-                  </div>
-                  
-                  <div className="flex justify-end gap-2">
-                    <Button 
-                      onClick={handleNextQuestion}
-                      disabled={isAIProcessing}
-                    >
-                      {isAIProcessing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : currentQuestionIndex === interview.questions.length - 1 ? (
-                        'Finish Interview'
-                      ) : (
-                        'Next Question'
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+    <div className="container mx-auto p-4 lg:p-8 min-h-screen bg-gradient-to-br from-background via-background/95 to-secondary/20">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header Section */}
+        <div className="flex flex-col space-y-4 text-center sm:text-left">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-violet-500 via-primary to-indigo-500 bg-clip-text text-transparent">
+              {interview.position}
+            </h1>
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
+              <Badge variant="default" className="px-3 py-1.5">
+                {interview.experience}+ YOE
+              </Badge>
+              {interview.techStack.split(',').map((tech, index) => (
+                <Badge 
+                  key={index} 
+                  variant="secondary"
+                  className="px-3 py-1.5 bg-white/5 border border-primary/10"
+                >
+                  {tech.trim()}
+                </Badge>
+              ))}
+            </div>
           </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent value="preparation">
-          <Card>
-            <CardHeader>
-              <h3 className="text-lg font-semibold">Preparation Tips</h3>
-            </CardHeader>
-            <CardContent>
-              <ul className="list-disc list-inside space-y-2">
-                <li>Ensure you're in a quiet environment</li>
-                <li>Test your microphone and camera</li>
-                <li>Have a glass of water nearby</li>
-                <li>Take deep breaths and stay calm</li>
-                <li>Listen to each question carefully</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        <Tabs defaultValue="interview" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+            <TabsTrigger value="interview" className="text-base">Interview</TabsTrigger>
+            <TabsTrigger value="preparation" className="text-base">Preparation</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="interview" className="space-y-6 mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Webcam Section */}
+              <Card className="border border-primary/10 bg-white/5 backdrop-blur-sm">
+                <CardHeader className="flex flex-row items-center justify-between border-b border-primary/10">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Video className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-semibold">Video Feed</h3>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={toggleWebcam}
+                    className="hover:bg-primary/10"
+                  >
+                    {isWebcamOn ? <VideoOff className="h-4 w-4" /> : <Video className="h-4 w-4" />}
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="aspect-video bg-black/20 rounded-xl overflow-hidden border border-primary/10">
+                    {isWebcamOn && (
+                      <Webcam
+                        ref={webcamRef}
+                        audio={false}
+                        mirrored
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Question and Answer Section */}
+              <Card className="border border-primary/10 bg-white/5 backdrop-blur-sm">
+                <CardHeader className="border-b border-primary/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <MessageSquare className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold">
+                          Question {currentQuestionIndex + 1} of {interview.questions.length}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">Answer clearly and concisely</p>
+                      </div>
+                    </div>
+                    <div className="hidden sm:block">
+                      <Badge variant="outline" className="bg-primary/5">
+                        {Math.round((currentQuestionIndex / interview.questions.length) * 100)}% Complete
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  {/* Question Display */}
+                  <div className="rounded-lg p-4 bg-primary/5 border border-primary/10">
+                    <p className="text-lg break-words whitespace-pre-wrap leading-relaxed">
+                      {interview.questions[currentQuestionIndex]?.question.split(' ').map((word, index) => (
+                        <span
+                          key={index}
+                          className={`${
+                            highlightedWords.includes(word)
+                              ? 'bg-primary/20 text-primary'
+                              : ''
+                          } transition-colors duration-200 mr-1 inline-block`}
+                        >
+                          {word}
+                        </span>
+                      ))}
+                    </p>
+                  </div>
+                  
+                  {/* Controls */}
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-3">
+                      <Button 
+                        onClick={speakQuestion} 
+                        disabled={isSpeaking}
+                        className="flex-1 sm:flex-none bg-primary/10 text-primary hover:bg-primary/20"
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        {isSpeaking ? 'Speaking...' : 'Replay Question'}
+                      </Button>
+                      <Button 
+                        onClick={toggleRecording} 
+                        variant={isRecording ? "destructive" : "default"}
+                        className="flex-1 sm:flex-none"
+                      >
+                        {isRecording ? (
+                          <>
+                            <MicOff className="h-4 w-4 mr-2" />
+                            Stop Recording
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="h-4 w-4 mr-2" />
+                            Start Recording
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {/* Answer Display */}
+                    <div className="min-h-[150px] p-4 border rounded-lg bg-white/5 backdrop-blur-sm">
+                      <div className="text-sm text-muted-foreground mb-2">Your Answer:</div>
+                      <div className="text-base leading-relaxed">
+                        {transcript || "Start speaking to record your answer..."}
+                      </div>
+                    </div>
+                    
+                    {/* Next Button */}
+                    <div className="flex justify-end">
+                      <Button 
+                        onClick={handleNextQuestion}
+                        disabled={isAIProcessing}
+                        className="bg-gradient-to-r from-violet-500 to-primary hover:from-violet-600 hover:to-primary/90 text-white shadow-lg hover:shadow-primary/25 transition-all duration-300"
+                      >
+                        {isAIProcessing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : currentQuestionIndex === interview.questions.length - 1 ? (
+                          'Finish Interview'
+                        ) : (
+                          'Next Question'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="preparation" className="mt-6">
+            <Card className="border border-primary/10 bg-white/5 backdrop-blur-sm">
+              <CardHeader className="border-b border-primary/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Lightbulb className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Interview Tips & Guidelines</h3>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-lg">Technical Tips</h4>
+                    <ul className="space-y-3">
+                      {[
+                        'Ensure stable internet connection',
+                        'Test audio before starting',
+                        'Position camera at eye level',
+                        'Choose a well-lit environment',
+                        'Minimize background noise'
+                      ].map((tip, index) => (
+                        <li key={index} className="flex items-start gap-2 text-muted-foreground">
+                          <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                          <span>{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-lg">Interview Best Practices</h4>
+                    <ul className="space-y-3">
+                      {[
+                        'Speak clearly and confidently',
+                        'Maintain eye contact with camera',
+                        'Take brief pauses when needed',
+                        'Structure your answers logically',
+                        'Ask for clarification if needed'
+                      ].map((tip, index) => (
+                        <li key={index} className="flex items-start gap-2 text-muted-foreground">
+                          <Star className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                          <span>{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };
