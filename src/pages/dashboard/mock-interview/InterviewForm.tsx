@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import Heading from "@/components/Heading";
 import { useAuth } from "@clerk/clerk-react";
-import { doc, getDoc, setDoc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/config/firebase.config";
 import { LoaderPage } from "@/pages/LoaderPage";
 import { toast } from "sonner";

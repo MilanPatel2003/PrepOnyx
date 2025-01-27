@@ -30,6 +30,7 @@ export interface UserAnswer {
   feedback: string;
   rating: number;
   userId: string;
+  questionIndex: number;
   createdAt: Timestamp;
   updateAt: Timestamp;
 }

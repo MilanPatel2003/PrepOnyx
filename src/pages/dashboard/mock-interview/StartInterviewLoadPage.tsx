@@ -8,8 +8,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Webcam from "react-webcam";
-import React from "react";
-import { LightbulbIcon, WebcamIcon } from "lucide-react";
+import { LightbulbIcon, Stars, WebcamIcon } from "lucide-react";
 
 const StartInterviewLoadPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -98,7 +97,7 @@ const StartInterviewLoadPage = () => {
             onClick={() => navigate(`/dashboard/mock-interview/${id}/start`)}
             className="mt-4 bg-blue-600 text-white hover:bg-blue-700 w-full md:w-auto"
           >
-            Start Interview
+            Start Interview <Stars/>
           </Button>
         </CardFooter>
       </Card>
