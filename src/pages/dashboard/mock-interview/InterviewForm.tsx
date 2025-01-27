@@ -22,6 +22,8 @@ import { db } from "@/config/firebase.config";
 import { LoaderPage } from "@/pages/LoaderPage";
 import { toast } from "sonner";
 import { chatSession } from "@/gemini"; // Import the chat session
+import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   position: z.string().min(1, "Position is required"),
@@ -52,6 +54,27 @@ const cleanAiResponse = (responseText: string) => {
     return JSON.parse(cleanText);
   } catch (error) {
     throw new Error("Invalid JSON format: " + (error as Error)?.message);
+  }
+};
+
+const containerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, x: -20 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.3 }
   }
 };
 
@@ -173,104 +196,136 @@ const InterviewForm = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <Heading
-        title={isEditMode ? "Edit Interview" : "Create New Interview"}
-        description={
-          isEditMode
-            ? "Update your interview details"
-            : "Set up a new mock interview with your requirements"
-        }
-      />
+    <motion.div 
+      className="max-w-3xl mx-auto space-y-8 p-6"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div variants={itemVariants}>
+        <Heading
+          title={isEditMode ? "Edit Interview" : "Create New Interview"}
+          description={
+            isEditMode
+              ? "Update your interview details"
+              : "Set up a new mock interview with your requirements"
+          }
+        />
+      </motion.div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField
-            control={form.control}
-            name="position"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Position</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="e.g. Senior Frontend Developer" 
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <motion.div 
+            className="space-y-6 rounded-lg border border-border/50 p-6 backdrop-blur-sm bg-card/30"
+            variants={itemVariants}
+          >
+            <FormField
+              control={form.control}
+              name="position"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base font-medium">Position</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="e.g. Senior Frontend Developer" 
+                      className="h-12 text-base transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage className="text-sm" />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Job Description</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="Describe the role and requirements"
-                    className="min-h-[100px]"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base font-medium">Job Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Describe the role and requirements"
+                      className="min-h-[120px] text-base resize-none transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage className="text-sm" />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="experience"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Years of Experience Required</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    min="0"
-                    placeholder="e.g. 3"
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="experience"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base font-medium">Years of Experience</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="0"
+                        placeholder="e.g. 3"
+                        className="h-12 text-base transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage className="text-sm" />
+                  </FormItem>
+                )}
+              />
 
-          <FormField
-            control={form.control}
-            name="techStack"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tech Stack</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="e.g. React, Node.js, TypeScript (comma separated)"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name="techStack"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base font-medium">Tech Stack</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g. React, Node.js, TypeScript"
+                        className="h-12 text-base transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-sm" />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </motion.div>
 
-          <div className="flex gap-4 justify-end">
+          <motion.div 
+            className="flex gap-4 justify-end pt-4"
+            variants={itemVariants}
+          >
             <Button
               type="button"
               variant="outline"
               onClick={() => navigate("/dashboard/mock-interview")}
+              className="h-12 px-6 text-base hover:bg-secondary/80"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : isEditMode ? "Update Interview" : "Create Interview"}
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="h-12 px-8 text-base bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 transition-all duration-300"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isEditMode ? "Updating..." : "Creating..."}
+                </>
+              ) : (
+                <>{isEditMode ? "Update Interview" : "Create Interview"}</>
+              )}
             </Button>
-          </div>
+          </motion.div>
         </form>
       </Form>
-    </div>
+    </motion.div>
   );
 };
 
