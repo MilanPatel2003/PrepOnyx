@@ -41,7 +41,6 @@ const Header = () => {
   const { isSignedIn } = useAuth();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
-  const isDashboard = location.pathname.includes('/dashboard');
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
