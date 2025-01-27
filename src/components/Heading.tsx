@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HeadingProps {
-  title: string;
+  title: string | null;
   description?: string;
   subtitle?: string;
   showAddButton?: boolean;

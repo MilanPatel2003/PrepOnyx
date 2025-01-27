@@ -60,7 +60,8 @@ const InterviewCard = ({ interview }: InterviewCardProps) => {
         <Button
           size="sm"
           className="flex-1"
-          onClick={() => navigate(`/dashboard/mock-interview/${interview.id}/start`)}
+          
+          onClick={() => navigate(`/dashboard/mock-interview/${interview.id}/loadpage`)}
         >
           <Play className="w-4 h-4 mr-2" />
           Start

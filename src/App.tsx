@@ -11,6 +11,7 @@ import { MainLayout } from '@/layouts/MainLayout'
 import MathNotes from './pages/dashboard/math-notes/MathNotes'
 import MockInterview from './pages/dashboard/mock-interview/MockInterview'
 import InterviewForm from './pages/dashboard/mock-interview/InterviewForm'
+import StartInterviewLoadPage from './pages/dashboard/mock-interview/StartInterviewLoadPage'
 
 
 // Import your feature pages
@@ -52,6 +53,7 @@ const App = () => {
                 <Route path=":id" element={<InterviewForm />} />
                 {/* <Route path=":id/feedback" element={<InterviewFeedback />} />
                 <Route path=":id/start" element={<StartInterview />} /> */}
+                <Route path=":id/loadpage" element={<StartInterviewLoadPage />} /> 
               </Route>
               {/* <Route path="pdf-analyzer" element={<PdfAnalyzer />} />
               <Route path="course-generator" element={<CourseGenerator />} />
