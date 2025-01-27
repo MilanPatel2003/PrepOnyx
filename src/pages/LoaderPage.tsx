@@ -5,7 +5,7 @@ export const LoaderPage = ({ className }: { className?: string }) => {
   return (
     <div
       className={cn(
-        "w-screen h-screen flex items-center justify-center bg-transparent z-50",
+        "w-full h-screen flex items-center justify-center bg-transparent z-50",
         className
       )}
     >

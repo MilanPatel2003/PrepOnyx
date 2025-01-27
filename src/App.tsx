@@ -8,7 +8,10 @@ import SignInPage from '@/pages/SignInPage'
 import SignUpPage from '@/pages/SignUpPage'
 import ProtectRoutes from '@/layouts/ProtectedRoutes'
 import { MainLayout } from '@/layouts/MainLayout'
-import MathNotes from './pages/dashboard/MathNotes'
+import MathNotes from './pages/dashboard/math-notes/MathNotes'
+import MockInterview from './pages/dashboard/mock-interview/MockInterview'
+import InterviewForm from './pages/dashboard/mock-interview/InterviewForm'
+
 
 // Import your feature pages
 // import MockInterview from '@/pages/dashboard/MockInterview'
@@ -43,8 +46,14 @@ const App = () => {
           >
             <Route path="/dashboard">
               <Route path="math-notes" element={<MathNotes />} />
-              {/* <Route path="mock-interview" element={<MockInterview />} />
-              <Route path="pdf-analyzer" element={<PdfAnalyzer />} />
+              <Route path="mock-interview">
+                <Route index element={<MockInterview />} />
+                <Route path="create" element={<InterviewForm />} />
+                <Route path=":id" element={<InterviewForm />} />
+                {/* <Route path=":id/feedback" element={<InterviewFeedback />} />
+                <Route path=":id/start" element={<StartInterview />} /> */}
+              </Route>
+              {/* <Route path="pdf-analyzer" element={<PdfAnalyzer />} />
               <Route path="course-generator" element={<CourseGenerator />} />
               <Route path="flashcards" element={<Flashcards />} />
               <Route path="profile" element={<Profile />} /> */}
