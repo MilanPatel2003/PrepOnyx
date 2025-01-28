@@ -14,6 +14,7 @@ import InterviewForm from './pages/dashboard/mock-interview/InterviewForm'
 import StartInterviewLoadPage from './pages/dashboard/mock-interview/StartInterviewLoadPage'
 import StartInterview from './pages/dashboard/mock-interview/StartInterview'
 import InterviewFeedback from './pages/dashboard/mock-interview/InterviewFeedback'
+import PdfAnalyzer from './pages/dashboard/pdf-analyzer/PdfAnalyzer'
 
 
 // Import your feature pages
@@ -57,8 +58,8 @@ const App = () => {
                 <Route path=":id/start" element={<StartInterview />} /> 
                 <Route path=":id/loadpage" element={<StartInterviewLoadPage />} /> 
               </Route>
-              {/* <Route path="pdf-analyzer" element={<PdfAnalyzer />} />
-              <Route path="course-generator" element={<CourseGenerator />} />
+              <Route path="pdf-analyzer" element={<PdfAnalyzer />} />
+              {/* <Route path="course-generator" element={<CourseGenerator />} />
               <Route path="flashcards" element={<Flashcards />} />
               <Route path="profile" element={<Profile />} /> */}
             </Route>
