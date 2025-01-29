@@ -183,4 +183,19 @@
   .button-glow:hover::after {
     @apply opacity-100;
   }
+
+  /* Result card styling */
+  .result-card {
+    @apply bg-gradient-to-b from-background via-background/95 to-background/90 dark:from-background/95 dark:via-background/90 dark:to-background/85;
+  }
+
+  /* Enhanced backdrop blur */
+  .backdrop-blur-custom {
+    @apply backdrop-blur-xl dark:backdrop-blur-2xl;
+  }
+
+  /* Card hover effects */
+  .hover-card-effect {
+    @apply transition-all duration-300 hover:shadow-lg dark:hover:shadow-primary/10;
+  }
 }

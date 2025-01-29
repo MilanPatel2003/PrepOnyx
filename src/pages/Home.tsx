@@ -208,8 +208,8 @@ const features = [
   },
   {
     icon: Brain,
-    title: "AI Math Notes Converter",
-    description: "Transform handwritten math notes into detailed solutions and explanations."
+    title: "Skribble AI",
+    description: "Transform handwritten mathematical expressions into instant solutions with AI."
   }
 ];
 

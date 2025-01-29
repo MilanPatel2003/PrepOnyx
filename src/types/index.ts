@@ -34,3 +34,5 @@ export interface UserAnswer {
   createdAt: Timestamp;
   updateAt: Timestamp;
 }
+
+export type Tool = 'pen' | 'eraser';

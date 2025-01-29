@@ -15,8 +15,8 @@ const publicNavItems = [
 
 const dashboardItems = [
   {
-    label: "Math Notes",
-    href: "/dashboard/math-notes",
+    label: "Skribble AI",
+    href: "/dashboard/skribbleAI",
   },
   {
     label: "Mock Interview",
