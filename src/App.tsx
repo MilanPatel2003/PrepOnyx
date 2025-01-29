@@ -49,7 +49,9 @@ const App = () => {
             }
           >
             <Route path="/dashboard">
+
               <Route path="skribbleAI" element={<Skribble />} />
+
               <Route path="mock-interview">
                 <Route index element={<MockInterview />} />
                 <Route path="create" element={<InterviewForm />} />
