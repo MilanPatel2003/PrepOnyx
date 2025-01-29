@@ -8,7 +8,6 @@ import SignInPage from '@/pages/SignInPage'
 import SignUpPage from '@/pages/SignUpPage'
 import ProtectRoutes from '@/layouts/ProtectedRoutes'
 import { MainLayout } from '@/layouts/MainLayout'
-import MathNotes from './pages/dashboard/math-notes/MathNotes'
 import MockInterview from './pages/dashboard/mock-interview/MockInterview'
 import InterviewForm from './pages/dashboard/mock-interview/InterviewForm'
 import StartInterviewLoadPage from './pages/dashboard/mock-interview/StartInterviewLoadPage'
@@ -49,7 +48,6 @@ const App = () => {
             }
           >
             <Route path="/dashboard">
-              <Route path="math-notes" element={<MathNotes />} />
               <Route path="mock-interview">
                 <Route index element={<MockInterview />} />
                 <Route path="create" element={<InterviewForm />} />
