@@ -14,6 +14,7 @@ import StartInterviewLoadPage from './pages/dashboard/mock-interview/StartInterv
 import StartInterview from './pages/dashboard/mock-interview/StartInterview'
 import InterviewFeedback from './pages/dashboard/mock-interview/InterviewFeedback'
 import PdfAnalyzer from './pages/dashboard/pdf-analyzer/PdfAnalyzer'
+import Skribble from './pages/dashboard/SkribbleAI/Skribble'
 
 
 // Import your feature pages
@@ -48,6 +49,9 @@ const App = () => {
             }
           >
             <Route path="/dashboard">
+
+              <Route path="skribbleAI" element={<Skribble />} />
+
               <Route path="mock-interview">
                 <Route index element={<MockInterview />} />
                 <Route path="create" element={<InterviewForm />} />
