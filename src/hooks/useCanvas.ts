@@ -43,8 +43,11 @@ export const useCanvas = ({ darkMode, lineWidth, color, tool }: UseCanvasProps) 
     if (!ctx) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = ('clientX' in e ? e.clientX : e.touches[0].clientX) - rect.left;
-    const y = ('clientY' in e ? e.clientY : e.touches[0].clientY) - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const x = (('clientX' in e ? e.clientX : e.touches[0].clientX) - rect.left) * scaleX;
+    const y = (('clientY' in e ? e.clientY : e.touches[0].clientY) - rect.top) * scaleY;
 
     ctx.strokeStyle = tool === 'eraser' ? (darkMode ? 'black' : 'white') : color;
     ctx.lineWidth = lineWidth;
