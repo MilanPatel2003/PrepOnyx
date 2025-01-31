@@ -1,24 +1,35 @@
-import  { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { Stage, Layer, Line, Rect, Circle } from 'react-konva';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { useCanvas } from '@/hooks/useCanvas';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Toolbar } from './Toolbar';
-import { Award, Variable, FunctionSquare } from 'lucide-react';
-import Heading from '@/components/Heading';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import {
+  Calculator,
+  Eraser,
+  Pen,
+  Square,
+  Circle as CircleIcon,
+  Minus,
+  Sun,
+  Moon,
+  Trash2,
+  Loader2,
+  FunctionSquare,
+  Triangle,
+  ArrowRight,
+  Plus
+} from 'lucide-react';
+import { nanoid } from 'nanoid';
+import Draggable from 'react-draggable';
+import { Tool, Shape, MathResult, ResultType } from '@/types/skribble';
 
-// Define TypeScript interfaces
-interface ResultType {
-  expr: string;
-  result: string;
-  assign?: boolean;
-  type: string;
-}
-
-type Tool = 'pen' | 'eraser';
+// Your provided prompt
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
-
 
 const COLORS = [
   '#000000', '#FFFFFF', '#FF3B30', '#FF2D55', 
@@ -26,7 +37,17 @@ const COLORS = [
   '#FFCC00', '#FF9500', '#8E8E93'
 ];
 
-const TOOLS: Tool[] = ['pen', 'eraser'];
+const TOOLS: { id: Tool; icon: React.ReactNode; label: string }[] = [
+  { id: 'pen', icon: <Pen className="h-4 w-4" />, label: 'Pen' },
+  { id: 'eraser', icon: <Eraser className="h-4 w-4" />, label: 'Eraser' },
+  { id: 'rectangle', icon: <Square className="h-4 w-4" />, label: 'Rectangle' },
+  { id: 'circle', icon: <CircleIcon className="h-4 w-4" />, label: 'Circle' },
+  { id: 'line', icon: <Minus className="h-4 w-4" />, label: 'Line' },
+  { id: 'triangle', icon: <Triangle className="h-4 w-4" />, label: 'Triangle' },
+  { id: 'arrow', icon: <ArrowRight className="h-4 w-4" />, label: 'Arrow' },
+];
+
+const BRUSH_SIZES = [2, 4, 6, 8, 12, 16, 20];
 
 const resizeImage = async (base64Str: string, maxWidth = 1024, maxHeight = 1024): Promise<string> => {
   return new Promise((resolve) => {
@@ -58,40 +79,116 @@ const resizeImage = async (base64Str: string, maxWidth = 1024, maxHeight = 1024)
 };
 
 export default function Skribble() {
-  const [darkMode, setDarkMode] = useState<boolean>(true);
+  const [darkMode, setDarkMode] = useState<boolean>(false);
   const [tool, setTool] = useState<Tool>('pen');
   const [color, setColor] = useState<string>(COLORS[0]);
   const [lineWidth, setLineWidth] = useState<number>(2);
-  const [result, setResult] = useState<ResultType[] | null>(null);
+  const [results, setResults] = useState<MathResult[] | null>(null);
   const [isCalculating, setIsCalculating] = useState<boolean>(false);
+  const [shapes, setShapes] = useState<Shape[]>([]);
+  const [currentShape, setCurrentShape] = useState<Shape | null>(null);
+  const stageRef = useRef<any>(null);
+  const isDrawing = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  const { canvasRef, startDrawing, stopDrawing, draw } = useCanvas({
-    darkMode,
-    lineWidth,
-    color,
-    tool,
-  });
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const { clientWidth, clientHeight } = containerRef.current;
+        setDimensions({
+          width: clientWidth,
+          height: clientHeight - 2, // Subtract border width
+        });
+      }
+    };
 
-  const resetCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
+  const handleMouseDown = (e: any) => {
+    isDrawing.current = true;
+    const pos = e.target.getStage().getPointerPosition();
     
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.fillStyle = darkMode ? 'black' : 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    setResult(null);
+    const newShape: Shape = {
+      id: nanoid(),
+      tool,
+      points: tool === 'pen' || tool === 'eraser' ? [pos.x, pos.y] : [],
+      x: pos.x,
+      y: pos.y,
+      color: tool === 'eraser' ? (darkMode ? '#000000' : '#FFFFFF') : color,
+      strokeWidth: lineWidth,
+    };
+
+    setCurrentShape(newShape);
+    if (tool !== 'pen' && tool !== 'eraser') {
+      setShapes([...shapes, newShape]);
+    }
+  };
+
+  const handleMouseMove = (e: any) => {
+    if (!isDrawing.current || !currentShape) return;
+
+    const stage = e.target.getStage();
+    const point = stage.getPointerPosition();
+
+    if (tool === 'pen' || tool === 'eraser') {
+      setCurrentShape({
+        ...currentShape,
+        points: [...(currentShape.points || []), point.x, point.y],
+      });
+    } else {
+      const lastShape = [...shapes].pop();
+      if (!lastShape) return;
+
+      if (tool === 'rectangle' || tool === 'circle') {
+        const newShapes = shapes.slice(0, -1).concat({
+          ...lastShape,
+          width: point.x - lastShape.x!,
+          height: point.y - lastShape.y!,
+        });
+        setShapes(newShapes);
+      } else if (tool === 'line' || tool === 'arrow') {
+        const newShapes = shapes.slice(0, -1).concat({
+          ...lastShape,
+          points: [lastShape.x!, lastShape.y!, point.x, point.y],
+        });
+        setShapes(newShapes);
+      } else if (tool === 'triangle') {
+        const newShapes = shapes.slice(0, -1).concat({
+          ...lastShape,
+          points: [
+            lastShape.x!,
+            lastShape.y!,
+            point.x,
+            point.y,
+            lastShape.x! + (point.x - lastShape.x!) / 2,
+            lastShape.y! - Math.abs(point.y - lastShape.y!),
+          ],
+        });
+        setShapes(newShapes);
+      }
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDrawing.current = false;
+    if (currentShape && (tool === 'pen' || tool === 'eraser')) {
+      setShapes([...shapes, currentShape]);
+    }
+    setCurrentShape(null);
   };
 
   const calculateResult = async () => {
     try {
       setIsCalculating(true);
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+      const stage = stageRef.current;
+      if (!stage) return;
 
-      // Get canvas data and resize it
-      let imageData = canvas.toDataURL('image/png');
+      // Get stage data and resize it
+      let imageData = stage.toDataURL();
       imageData = await resizeImage(imageData);
       const base64Data = imageData.split(',')[1];
 
@@ -154,7 +251,7 @@ export default function Skribble() {
           throw new Error('Invalid result format');
         }
         
-        setResult(formattedResult.map(item => ({
+        setResults(formattedResult.map(item => ({
           ...item,
           expr: item.expr || 'Unknown expression',
           result: Array.isArray(item.steps) && item.steps.length > 0
@@ -162,96 +259,266 @@ export default function Skribble() {
             : item.result || 'No result available'
         })));
       } catch (parseError) {
-        setResult([{
+        setResults([{
           expr: "Error parsing result",
           result: "Could not process the mathematical expression correctly",
-          type: "error"
+          type: "error" as ResultType,
+          steps: []
         }]);
       }
     } catch (error) {
       console.error('Error calculating result:', error);
-      setResult([{ 
+      setResults([{ 
         expr: "Error", 
         result: error instanceof Error ? error.message : "An unknown error occurred",
-        type: "error"
+        type: "error" as ResultType,
+        steps: []
       }]);
     } finally {
       setIsCalculating(false);
     }
   };
 
-  return (
-    <div className="h-[calc(100vh-4rem)] p-6 flex flex-col gap-4">
-      <Heading
-        title="Skribble AI"
-        description="Draw mathematical expressions and get instant solutions."
-      />
+  const ResultCard = ({ result }: { result: MathResult }) => (
+    <Draggable handle=".drag-handle">
+      <Card className="w-96 shadow-lg mb-4">
+        <CardHeader className="drag-handle cursor-move pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FunctionSquare className="h-5 w-5" />
+              <CardTitle className="text-lg">{result.expr}</CardTitle>
+            </div>
+            <Badge variant="outline">{result.type}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Final Result */}
+          <div className="bg-primary/10 p-4 rounded-lg">
+            <p className="font-medium">Result</p>
+            <p className="text-lg font-mono">{result.result}</p>
+          </div>
 
-      <div className="relative flex-1 border rounded-lg overflow-hidden">
-        <Toolbar
-          tool={tool}
-          setTool={setTool}
-          color={color}
-          setColor={setColor}
-          lineWidth={lineWidth}
-          setLineWidth={setLineWidth}
-          darkMode={darkMode}
-          setDarkMode={setDarkMode}
-          onReset={resetCanvas}
-          onCalculate={calculateResult}
-          isCalculating={isCalculating}
-          colors={COLORS}
-          tools={TOOLS}
-        />
-
-        <main className="relative h-full pt-16">
-          <canvas
-            ref={canvasRef}
-            className="touch-none w-full h-full z-0"
-            onMouseDown={startDrawing}
-            onMouseMove={draw}
-            onMouseUp={stopDrawing}
-            onMouseOut={stopDrawing}
-            onTouchStart={startDrawing}
-            onTouchMove={draw}
-            onTouchEnd={stopDrawing}
-          />
-          
-          {result && (
-            <div className="absolute right-0 top-0 pt-20 w-full max-w-sm mx-4 lg:mx-6 lg:right-6 z-40">
-              <Card className="border-primary/10 bg-background/95 backdrop-blur-xl shadow-lg dark:shadow-primary/10">
-                <CardHeader className="border-b border-border/50 bg-primary/5">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Award className="h-5 w-5 text-primary" />
-                    Results
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-3">
-                  {result.map((item, index) => (
-                    <div 
-                      key={index} 
-                      className="p-3 rounded-lg border border-border/50 bg-background/50 backdrop-blur-sm transition-all duration-200 hover:border-primary/20 hover:bg-primary/5"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="p-1.5 rounded-md bg-primary/10">
-                          {item.assign ? (
-                            <Variable className="h-4 w-4 text-primary" />
-                          ) : (
-                            <FunctionSquare className="h-4 w-4 text-primary" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-foreground truncate">{item.expr}</p>
-                          <p className="text-sm text-muted-foreground mt-1">{item.result}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+          {/* Steps */}
+          {result.steps && result.steps.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-medium">Steps</p>
+              <ScrollArea className="h-[200px]">
+                {result.steps.map((step, index) => (
+                  <div key={index} className="border-l-2 border-primary/20 pl-4 py-2 mb-2">
+                    <p className="text-sm">{step}</p>
+                  </div>
+                ))}
+              </ScrollArea>
             </div>
           )}
-        </main>
+        </CardContent>
+      </Card>
+    </Draggable>
+  );
+
+  return (
+    <div ref={containerRef} className="h-[calc(100vh-4rem)] p-6 flex flex-col gap-4">
+      {/* Toolbar */}
+      <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg shadow-lg border p-2">
+        <div className="flex items-center gap-2">
+          {/* Tools */}
+          <div className="flex items-center gap-1">
+            {TOOLS.map((toolItem) => (
+              <Button
+                key={toolItem.id}
+                variant={tool === toolItem.id ? "default" : "ghost"}
+                size="icon"
+                onClick={() => setTool(toolItem.id)}
+                title={toolItem.label}
+              >
+                {toolItem.icon}
+              </Button>
+            ))}
+          </div>
+          
+          <Separator orientation="vertical" className="h-8" />
+          
+          {/* Brush Size */}
+          <div className="flex items-center gap-2">
+            <Minus className="h-3 w-3" />
+            {BRUSH_SIZES.map((size) => (
+              <Button
+                key={size}
+                variant={lineWidth === size ? "default" : "ghost"}
+                size="icon"
+                className="w-8 h-8 rounded-full p-0"
+                onClick={() => setLineWidth(size)}
+              >
+                <div 
+                  className="rounded-full bg-foreground"
+                  style={{ 
+                    width: Math.min(size, 16),
+                    height: Math.min(size, 16)
+                  }} 
+                />
+              </Button>
+            ))}
+            <Plus className="h-3 w-3" />
+          </div>
+
+          <Separator orientation="vertical" className="h-8" />
+
+          {/* Colors */}
+          <div className="flex items-center gap-1">
+            {COLORS.map((c) => (
+              <button
+                key={c}
+                className={`w-6 h-6 rounded-full border-2 ${
+                  color === c ? 'border-primary' : 'border-transparent'
+                }`}
+                style={{ backgroundColor: c }}
+                onClick={() => setColor(c)}
+              />
+            ))}
+          </div>
+
+          <Separator orientation="vertical" className="h-8" />
+
+          {/* Actions */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setDarkMode(!darkMode)}
+            >
+              {darkMode ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShapes([])}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={calculateResult}
+              disabled={isCalculating}
+            >
+              {isCalculating ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Calculator className="h-4 w-4 mr-2" />
+              )}
+              Calculate
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex gap-4">
+        {/* Canvas */}
+        <div className="flex-1 border rounded-lg overflow-hidden">
+          <Stage
+            width={dimensions.width}
+            height={dimensions.height}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            ref={stageRef}
+          >
+            <Layer>
+              <Rect
+                width={dimensions.width}
+                height={dimensions.height}
+                fill={darkMode ? '#000000' : '#FFFFFF'}
+              />
+              {shapes.map((shape) => {
+                if (shape.tool === 'pen' || shape.tool === 'eraser') {
+                  return (
+                    <Line
+                      key={shape.id}
+                      points={shape.points}
+                      stroke={shape.color}
+                      strokeWidth={shape.strokeWidth}
+                      tension={0.5}
+                      lineCap="round"
+                      lineJoin="round"
+                    />
+                  );
+                } else if (shape.tool === 'rectangle') {
+                  return (
+                    <Rect
+                      key={shape.id}
+                      x={shape.x}
+                      y={shape.y}
+                      width={shape.width}
+                      height={shape.height}
+                      stroke={shape.color}
+                      strokeWidth={shape.strokeWidth}
+                    />
+                  );
+                } else if (shape.tool === 'circle') {
+                  return (
+                    <Circle
+                      key={shape.id}
+                      x={shape.x}
+                      y={shape.y}
+                      radius={Math.abs(shape.width || 0) / 2}
+                      stroke={shape.color}
+                      strokeWidth={shape.strokeWidth}
+                    />
+                  );
+                } else if (shape.tool === 'line' || shape.tool === 'arrow') {
+                  return (
+                    <Line
+                      key={shape.id}
+                      points={shape.points}
+                      stroke={shape.color}
+                      strokeWidth={shape.strokeWidth}
+                      lineCap="round"
+                      {...(shape.tool === 'arrow' && {
+                        arrow: true,
+                        arrowSize: shape.strokeWidth * 2
+                      })}
+                    />
+                  );
+                } else if (shape.tool === 'triangle') {
+                  return (
+                    <Line
+                      key={shape.id}
+                      points={shape.points}
+                      stroke={shape.color}
+                      strokeWidth={shape.strokeWidth}
+                      closed={true}
+                    />
+                  );
+                }
+                return null;
+              })}
+              {currentShape && (
+                <Line
+                  points={currentShape.points}
+                  stroke={currentShape.color}
+                  strokeWidth={currentShape.strokeWidth}
+                  tension={0.5}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+              )}
+            </Layer>
+          </Stage>
+        </div>
+
+        {/* Results Panel */}
+        {results && (
+          <div className="w-[400px] border rounded-lg p-4">
+            <ScrollArea className="h-[calc(100vh-12rem)]">
+              {results.map((result, index) => (
+                <ResultCard key={index} result={result} />
+              ))}
+            </ScrollArea>
+          </div>
+        )}
       </div>
     </div>
   );

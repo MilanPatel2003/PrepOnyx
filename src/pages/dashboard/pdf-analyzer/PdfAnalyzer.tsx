@@ -106,7 +106,7 @@ const PDFAnalyzer: React.FC = () => {
 
   return (
  
-    <div className="container mx-auto p-6 max-w-3xl">
+    <div className="container mx-auto p-6 max-w-screen-2xl">
     <Card className="mb-8">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -152,9 +152,9 @@ const PDFAnalyzer: React.FC = () => {
         )}
 
         {summary && (
-          <ScrollArea className="mt-6 h-48 rounded-md border p-4">
+          <ScrollArea className="mt-6 h-48 rounded-md border p-4 bg-gray-100 shadow-md">
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Document Summary</h3>
+              <h3 className="text-lg font-semibold text-blue-600">Document Summary</h3>
               <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
                 {summary}
               </p>

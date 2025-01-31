@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { Tool } from "@/types";
+import { Tool } from '@/types/skribble';
 import { EraserIcon, MoonIcon, PenIcon, SunIcon } from "lucide-react";
 
 interface ToolbarProps {
