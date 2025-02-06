@@ -1,6 +1,7 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/config/firebase.config";
 import { useAuth } from "@clerk/clerk-react";
 import { Interview } from "@/types";
@@ -41,6 +42,29 @@ const MockInterview = () => {
     fetchInterviews();
   }, [userId]);
 
+  const handleDeleteInterview = async (id: string) => {
+    try {
+      // First delete all user answers associated with this interview
+      const userAnswersRef = collection(db, 'userAnswers');
+      const q = query(userAnswersRef, where('mockIdRef', '==', id));
+      const querySnapshot = await getDocs(q);
+      
+      // Delete each user answer document
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+
+      // Then delete the interview itself
+      await deleteDoc(doc(db, "interviews", id));
+      
+      // Update local state
+      setInterviews(prev => prev.filter(interview => interview.id !== id));
+      toast.success("Interview and associated answers deleted successfully");
+    } catch (error) {
+      console.error("Error deleting interview:", error);
+      toast.error("Failed to delete interview");
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
       <Heading
@@ -72,7 +96,11 @@ const MockInterview = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {interviews.map((interview) => (
-            <InterviewCard key={interview.id} interview={interview} />
+            <InterviewCard 
+              key={interview.id} 
+              interview={interview}
+              onDelete={handleDeleteInterview}
+            />
           ))}
         </div>
       )}
