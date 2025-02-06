@@ -91,7 +91,7 @@ const Home = () => {
                   playsInline
                   className="w-full h-full object-cover"
                 >
-                  <source src="/assets/video/logic_ledger_final.mp4" type="video/mp4" />
+                  <source src="/assets/video/preponyx_new_demo.mp4" type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
                 <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-transparent to-transparent" />
