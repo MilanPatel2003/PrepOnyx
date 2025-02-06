@@ -13,25 +13,25 @@ export const LoaderPage = ({ className }: { className?: string }) => {
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
         className="mb-8"
       >
         <img 
-          src="/assets/img/PrepOnyx_logo.png" 
+          src="/assets/img/PrepOnyx_New_Logo.svg" 
           alt="PrepOnyx" 
-          className="h-12 w-auto"
+          className="h-16 w-auto"
         />
       </motion.div>
 
       {/* Loading Animation */}
       <div className="relative">
         <motion.div
-          className="h-16 w-16 rounded-full border-4 border-primary/30"
+          className="h-20 w-20 rounded-full border-4 border-primary/20"
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
         />
         <motion.div
-          className="absolute inset-0 h-16 w-16 rounded-full border-4 border-transparent border-t-primary"
+          className="absolute inset-0 h-20 w-20 rounded-full border-4 border-transparent border-t-primary"
           animate={{ rotate: 360 }}
           transition={{ 
             duration: 1.5, 
@@ -54,8 +54,8 @@ export const LoaderPage = ({ className }: { className?: string }) => {
 
       {/* Gradient Background */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-purple-500/10 to-transparent opacity-50" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(147,51,234,0.1),transparent_50%)]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-blue-500/10 to-transparent opacity-50" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.1),transparent_50%)]" />
       </div>
     </div>
   );
