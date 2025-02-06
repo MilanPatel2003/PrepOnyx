@@ -55,9 +55,9 @@ const Footer = () => {
           <div className="lg:col-span-2">
             <Link to="/" className="inline-block mb-4">
               <img
-                src="/assets/img/PrepOnyx_logo.png"
+                src="/assets/img/PrepOnyx_New_Logo.svg"
                 alt="PrepOnyx"
-                className="h-8 w-auto"
+                className="h-12 w-auto"
               />
             </Link>
             <p className="text-muted-foreground mb-4 max-w-sm">
