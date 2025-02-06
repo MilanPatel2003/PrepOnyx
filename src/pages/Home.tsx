@@ -76,27 +76,46 @@ const Home = () => {
               </div>
             </motion.div>
 
-            {/* Video Showcase */}
+            {/* Video Showcase - Mobile Optimized */}
             <motion.div 
-              className="flex-1 relative"
+              className="flex-1 relative sm:h-96 w-full aspect-video max-w-[2000] mx-auto px-4 sm:px-0"
               variants={itemVariants}
               whileHover={{ scale: 1.02 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
-              <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/10 backdrop-blur-sm">
+              <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/10 backdrop-blur-sm h-full w-full">
+                <div className="absolute inset-0 bg-black/20 z-10" />
                 <video 
                   autoPlay 
                   loop 
                   muted 
                   playsInline
-                  className="w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                 >
                   <source src="/assets/video/preponyx_new_demo.mp4" type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
-                <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-transparent to-transparent" />
+                {/* Play Button Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center z-20">
+                  <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center hover:scale-105 transition-transform">
+                    <svg 
+                      className="w-8 h-8 text-white" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                  </div>
+                </div>
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-transparent to-transparent z-15" />
               </div>
-              <div className="absolute -inset-1 bg-gradient-to-r from-teal-500/20 to-purple-500/20 blur-xl -z-10" />
+              {/* Glow Effect */}
+              <div className="absolute -inset-4 bg-gradient-to-r from-teal-500/20 to-purple-500/20 blur-2xl opacity-50 -z-10" />
             </motion.div>
           </motion.div>
         </div>
