@@ -80,6 +80,18 @@ const Header = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
             >
+              <Link
+                to="/dashboard"
+                className={cn(
+                  "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  location.pathname === "/dashboard"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground"
+                )}
+              >
+                Dashboard
+              </Link>
               {dashboardItems.map((item) => (
                 <Link
                   key={item.label}
@@ -219,6 +231,30 @@ const Header = () => {
                 )}
 
                 {/* Dashboard Nav Items - Only show if signed in */}
+                {isSignedIn && (
+                  <motion.div
+                    key="dashboard"
+                    variants={{
+                      hidden: { opacity: 0, x: -10 },
+                      visible: { opacity: 1, x: 0 },
+                    }}
+                  >
+                    <Link
+                      to="/dashboard"
+                      className={cn(
+                        "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+                        "hover:bg-accent hover:text-accent-foreground",
+                        location.pathname === "/dashboard"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground"
+                      )}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                  </motion.div>
+                )}
+
                 {isSignedIn &&
                   dashboardItems.map((item) => (
                     <motion.div

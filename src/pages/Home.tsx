@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, BookOpen, Brain, FileText, MessageSquare, School } from "lucide-react";
 import { AnimatedGridPattern } from "@/components/ui/AnimatedGridPattern";
+import { Link } from "react-router-dom";
 
 // Animation variants
 const containerVariants = {
@@ -70,7 +71,7 @@ const Home = () => {
                   size="lg"
                   className="bg-primary hover:bg-primary/90 transition-all"
                 >
-                  Get Started
+                  <Link to="/signup">Get Started</Link>
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
