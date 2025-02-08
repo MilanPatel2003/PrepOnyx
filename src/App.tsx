@@ -15,6 +15,7 @@ import StartInterview from './pages/dashboard/mock-interview/StartInterview'
 import InterviewFeedback from './pages/dashboard/mock-interview/InterviewFeedback'
 import PdfAnalyzer from './pages/dashboard/pdf-analyzer/PdfAnalyzer'
 import Skribble from './pages/dashboard/SkribbleAI/Skribble'
+import Dashboard from './pages/dashboard/Dashboard'
 
 
 // Import your feature pages
@@ -49,6 +50,7 @@ const App = () => {
             }
           >
             <Route path="/dashboard">
+            <Route index element={<Dashboard />} /> {/* New route */}
 
               <Route path="skribbleAI" element={<Skribble />} />
 

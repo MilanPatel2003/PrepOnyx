@@ -10,7 +10,7 @@ const SignInPage = () => {
         <div className="relative">
           <div className="flex justify-center">
             <img 
-              src="/assets/img/PrepOnyx_logo.png"
+              src="/assets/img/PrepOnyx_New_Logo.svg"
               alt="PrepOnyx Logo"
               className="h-20 w-auto"
             />
