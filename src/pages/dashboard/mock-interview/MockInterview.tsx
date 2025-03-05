@@ -5,7 +5,7 @@ import { collection, getDocs, query, where, deleteDoc, doc } from "firebase/fire
 import { db } from "@/config/firebase.config";
 import { useAuth } from "@clerk/clerk-react";
 import { Interview } from "@/types";
-import Heading from "@/components/Heading";
+import { FeatureHeader } from "@/components/FeatureHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { MessageSquare } from "lucide-react";
 import InterviewCard from "./InterviewCard";
@@ -66,12 +66,20 @@ const MockInterview = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
-      <Heading
+    <div className="space-y-6 px-2 sm:px-0">
+      <FeatureHeader
         title="AI Mock Interview"
         description="Simulate interviews based on your resume with AI-generated questions and detailed feedback."
+        icon={<MessageSquare className="h-6 w-6" />}
+        usageSteps={[
+          "Create a new interview with your desired position",
+          "Answer AI-generated questions in real-time",
+          "Receive instant feedback on your responses",
+          "Review your performance metrics"
+        ]}
         showAddButton
         onAddClick={() => navigate("/dashboard/mock-interview/create")}
+        className="mb-6"
       />
 
       {loading ? (

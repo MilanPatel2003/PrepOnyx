@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useRef, useEffect } from 'react';
 import { Stage, Layer, Line, Rect, Circle } from 'react-konva';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -20,11 +21,14 @@ import {
   FunctionSquare,
   Triangle,
   ArrowRight,
-  Plus
+  Plus,
+  X,
+  Brain
 } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import Draggable from 'react-draggable';
 import { Tool, Shape, MathResult, ResultType } from '@/types/skribble';
+import { FeatureHeader } from "@/components/FeatureHeader";
 
 // Your provided prompt
 
@@ -281,7 +285,7 @@ export default function Skribble() {
 
   const ResultCard = ({ result }: { result: MathResult }) => (
     <Draggable handle=".drag-handle">
-      <Card className="w-96 shadow-lg mb-4">
+      <Card className="w-full sm:w-96 shadow-lg mb-4 hover:shadow-xl transition-shadow">
         <CardHeader className="drag-handle cursor-move pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -292,23 +296,20 @@ export default function Skribble() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Final Result */}
-          <div className="bg-primary/10 p-4 rounded-lg">
-            <p className="font-medium">Result</p>
-            <p className="text-lg font-mono">{result.result}</p>
+          <div className="bg-primary/10 p-3 rounded-lg">
+            <p className="font-medium text-sm sm:text-base">Result</p>
+            <p className="text-base sm:text-lg font-mono break-words">{result.result}</p>
           </div>
-
-          {/* Steps */}
           {result.steps && result.steps.length > 0 && (
             <div className="space-y-2">
-              <p className="font-medium">Steps</p>
-              <ScrollArea className="h-[200px]">
+              <p className="font-medium text-sm sm:text-base">Steps</p>
+              <div className="max-h-[150px] sm:max-h-[200px] overflow-y-auto">
                 {result.steps.map((step, index) => (
-                  <div key={index} className="border-l-2 border-primary/20 pl-4 py-2 mb-2">
-                    <p className="text-sm">{step}</p>
+                  <div key={index} className="border-l-2 border-primary/20 pl-3 py-1 mb-2">
+                    <p className="text-xs sm:text-sm">{step}</p>
                   </div>
                 ))}
-              </ScrollArea>
+              </div>
             </div>
           )}
         </CardContent>
@@ -317,106 +318,130 @@ export default function Skribble() {
   );
 
   return (
-    <div ref={containerRef} className="h-[calc(100vh-4rem)] p-6 flex flex-col gap-4">
-      {/* Toolbar */}
-      <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg shadow-lg border p-2">
-        <div className="flex items-center gap-2">
-          {/* Tools */}
-          <div className="flex items-center gap-1">
+    <div ref={containerRef} className="h-[calc(100vh-4rem)] p-2 sm:p-4 flex flex-col gap-2 sm:gap-4">
+      <FeatureHeader
+        title="Skribble AI"
+        description="Solve handwritten math problems with AI-powered recognition"
+        icon={<Brain className="h-6 w-6" />}
+        badge="Beta"
+        usageSteps={[
+          "Use the drawing tools to write your math problem",
+          "Select the appropriate tool (pen, shapes, etc.)",
+          "Adjust color and brush size as needed",
+          "Click 'Calculate' to get the solution"
+        ]}
+        className="mb-4"
+      />
+      {/* Toolbar - Responsive Design */}
+      <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg shadow-lg border p-1 sm:p-2">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+          {/* Tools - Responsive Grid */}
+          <div className="flex flex-wrap items-center gap-1">
             {TOOLS.map((toolItem) => (
               <Button
                 key={toolItem.id}
                 variant={tool === toolItem.id ? "default" : "ghost"}
                 size="icon"
+                className="h-8 w-8 sm:h-10 sm:w-10"
                 onClick={() => setTool(toolItem.id)}
                 title={toolItem.label}
               >
-                {toolItem.icon}
+                {React.cloneElement(toolItem.icon as React.ReactElement, { className: "h-3 w-3 sm:h-4 sm:w-4" })}
               </Button>
             ))}
           </div>
           
-          <Separator orientation="vertical" className="h-8" />
+          <Separator orientation="vertical" className="h-6 sm:h-8 hidden sm:block" />
           
-          {/* Brush Size */}
-          <div className="flex items-center gap-2">
-            <Minus className="h-3 w-3" />
-            {BRUSH_SIZES.map((size) => (
-              <Button
-                key={size}
-                variant={lineWidth === size ? "default" : "ghost"}
-                size="icon"
-                className="w-8 h-8 rounded-full p-0"
-                onClick={() => setLineWidth(size)}
-              >
-                <div 
-                  className="rounded-full bg-foreground"
-                  style={{ 
-                    width: Math.min(size, 16),
-                    height: Math.min(size, 16)
-                  }} 
+          {/* Brush Size - Responsive */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Minus className="h-2 w-2 sm:h-3 sm:w-3" />
+            <ScrollArea className="w-32 sm:w-auto">
+              <div className="flex gap-1">
+                {BRUSH_SIZES.map((size) => (
+                  <Button
+                    key={size}
+                    variant={lineWidth === size ? "default" : "ghost"}
+                    size="icon"
+                    className="h-6 w-6 sm:h-8 sm:w-8 rounded-full p-0"
+                    onClick={() => setLineWidth(size)}
+                  >
+                    <div 
+                      className="rounded-full bg-foreground"
+                      style={{ 
+                        width: Math.min(size, 12),
+                        height: Math.min(size, 12)
+                      }} 
+                    />
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+            <Plus className="h-2 w-2 sm:h-3 sm:w-3" />
+          </div>
+
+          <Separator orientation="vertical" className="h-6 sm:h-8 hidden sm:block" />
+
+          {/* Colors - Responsive */}
+          <ScrollArea className="w-24 sm:w-auto">
+            <div className="flex gap-1">
+              {COLORS.map((c) => (
+                <button
+                  key={c}
+                  className={`h-5 w-5 sm:h-6 sm:w-6 rounded-full border-2 ${
+                    color === c ? 'border-primary' : 'border-transparent'
+                  }`}
+                  style={{ backgroundColor: c }}
+                  onClick={() => setColor(c)}
                 />
-              </Button>
-            ))}
-            <Plus className="h-3 w-3" />
-          </div>
+              ))}
+            </div>
+          </ScrollArea>
 
-          <Separator orientation="vertical" className="h-8" />
+          <Separator orientation="vertical" className="h-6 sm:h-8 hidden sm:block" />
 
-          {/* Colors */}
-          <div className="flex items-center gap-1">
-            {COLORS.map((c) => (
-              <button
-                key={c}
-                className={`w-6 h-6 rounded-full border-2 ${
-                  color === c ? 'border-primary' : 'border-transparent'
-                }`}
-                style={{ backgroundColor: c }}
-                onClick={() => setColor(c)}
-              />
-            ))}
-          </div>
-
-          <Separator orientation="vertical" className="h-8" />
-
-          {/* Actions */}
-          <div className="flex items-center gap-1">
+          {/* Actions - Responsive */}
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8 sm:h-10 sm:w-10"
               onClick={() => setDarkMode(!darkMode)}
             >
               {darkMode ? (
-                <Sun className="h-4 w-4" />
+                <Sun className="h-3 w-3 sm:h-4 sm:w-4" />
               ) : (
-                <Moon className="h-4 w-4" />
+                <Moon className="h-3 w-3 sm:h-4 sm:w-4" />
               )}
             </Button>
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8 sm:h-10 sm:w-10"
               onClick={() => setShapes([])}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             <Button
               onClick={calculateResult}
               disabled={isCalculating}
+              className="h-8 px-2 sm:h-10 sm:px-4"
             >
               {isCalculating ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-1 sm:mr-2" />
               ) : (
-                <Calculator className="h-4 w-4 mr-2" />
+                <Calculator className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               )}
-              Calculate
+              <span className="text-xs sm:text-sm">Calculate</span>
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 flex gap-4">
+      {/* Main Content - Responsive Layout */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-2 sm:gap-4">
         {/* Canvas */}
-        <div className="flex-1 border rounded-lg overflow-hidden">
+        <div className="flex-1 border rounded-lg overflow-hidden min-h-[300px] sm:min-h-[400px]">
           <Stage
             width={dimensions.width}
             height={dimensions.height}
@@ -509,14 +534,27 @@ export default function Skribble() {
           </Stage>
         </div>
 
-        {/* Results Panel */}
+        {/* Results Panel - Responsive */}
         {results && (
-          <div className="w-[400px] border rounded-lg p-4">
-            <ScrollArea className="h-[calc(100vh-12rem)]">
-              {results.map((result, index) => (
-                <ResultCard key={index} result={result} />
-              ))}
-            </ScrollArea>
+          <div className="fixed bottom-0 left-0 right-0 sm:relative sm:bottom-auto sm:left-auto sm:right-auto">
+            <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t sm:border rounded-lg p-3 sm:p-4 shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold">Results</h3>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setResults(null)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                {results.map((result, index) => (
+                  <ResultCard key={index} result={result} />
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
