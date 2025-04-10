@@ -14,7 +14,7 @@ import { LoaderPage } from '@/pages/LoaderPage';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import {  useUser } from '@clerk/clerk-react';
 import { toast } from 'sonner';
-import { chatSession } from '@/gemini';
+import { llmModels } from '@/llm';
 
 
 // Define types for Web Speech API
@@ -220,9 +220,8 @@ const StartInterview = () => {
     `;
 
     try {
-      const result = await chatSession.sendMessage(prompt);
-      const response = await result.response;
-      const aiResponse = cleanJsonResponse(response.text()) as AIResponse;
+      const result = await llmModels.googleGemini.invoke(prompt);
+      const aiResponse = cleanJsonResponse(result.content as string) as AIResponse;
       return aiResponse;
     } catch (error) {
       console.error('AI Processing Error:', error);

@@ -21,9 +21,9 @@ import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from "fir
 import { db } from "@/config/firebase.config";
 import { LoaderPage } from "@/pages/LoaderPage";
 import { toast } from "sonner";
-import { chatSession } from "@/gemini"; // Import the chat session
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
+import { llmModels } from "@/llm"; // Import the llmModels
 
 const formSchema = z.object({
   position: z.string().min(1, "Position is required"),
@@ -114,9 +114,8 @@ const InterviewForm = () => {
     `;
 
     try {
-        const result = await chatSession.sendMessage(prompt);
-        const response = await result.response;
-        return cleanAiResponse(response.text());
+      const result = await llmModels.googleGemini.invoke(prompt);
+      return cleanAiResponse(result.content as string);
     } catch (error) {
       console.error("Error generating questions and answers:", error);
       throw new Error("Failed to generate questions and answers");

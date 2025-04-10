@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { chatSession } from '@/gemini';
 import { Award, FileText, RefreshCw, Upload } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FeatureHeader } from "@/components/FeatureHeader";
+import { llmModels } from "@/llm";
 
 const PDFAnalyzer: React.FC = () => {
   const [summary, setSummary] = useState<string>('');
@@ -37,17 +37,45 @@ const PDFAnalyzer: React.FC = () => {
       const uploadData = await uploadResponse.json();
       const pdfUrl = uploadData.secure_url;
 
-      const prompt = `Analyze this PDF (${pdfUrl}). First, provide a concise summary. Then, create 10 multiple choice questions based on the content. Format your response as follows:
+      const prompt = `
+        Analyze the content of the provided PDF (${pdfUrl}) and perform the following tasks:
 
-      SUMMARY:
-      [your summary here]
+        1. **Summary**:
+           - Provide a concise and comprehensive summary of the document.
+           - Highlight the key points, main arguments, and any critical information.
+           - Ensure the summary is well-structured and easy to understand.
 
-      QUESTIONS:
-      [JSON array of question objects with 'question', 'options' (array of 4 strings), and 'correctAnswer' (index 0-3)]`;
+        2. **Questions**:
+           - Generate 10 multiple-choice questions based on the content of the document.
+           - Each question should have 4 options, with only one correct answer.
+           - Ensure the questions cover a broad range of topics from the document.
+           - The questions should test both factual knowledge and conceptual understanding.
+           - Avoid ambiguous or overly complex questions.
 
-      const result = await chatSession.sendMessage(prompt);
-      const response = await result.response;
-      const text = await response.text();
+        3. **Format**:
+           - Return the response in the following JSON format:
+             {
+               "SUMMARY": "<your summary here>",
+               "QUESTIONS": [
+                 {
+                   "question": "<question text>",
+                   "options": ["<option 1>", "<option 2>", "<option 3>", "<option 4>"],
+                   "correctAnswer": <index of the correct option (0-3)>
+                 },
+                 ...
+               ]
+             }
+           - Ensure the JSON is valid and properly formatted.
+
+        4. **Guidelines**:
+           - The summary should be no longer than 200 words.
+           - The questions should be clear and directly related to the content.
+           - The correct answer should be unambiguous and factually accurate.
+           - Avoid including any explanations or additional text outside the JSON structure.
+      `;
+
+      const result = await llmModels.googleGemini.invoke(prompt);
+      const text = result.content as string;
 
       console.log('Full Response Text:', text);
 
