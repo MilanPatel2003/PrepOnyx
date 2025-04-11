@@ -27,10 +27,8 @@ import {
 } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import Draggable from 'react-draggable';
-import { Tool, Shape, MathResult, ResultType } from '@/types/skribble';
+import { Tool, Shape, MathResult, ResultType, Step } from '@/types/skribble';
 import { FeatureHeader } from "@/components/FeatureHeader";
-
-// Your provided prompt
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
@@ -82,6 +80,131 @@ const resizeImage = async (base64Str: string, maxWidth = 1024, maxHeight = 1024)
   });
 };
 
+const preprocessImage = async (base64Str: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(base64Str);
+
+      // Draw white background first
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw the image
+      ctx.drawImage(img, 0, 0);
+      
+      // Enhance contrast
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      
+      for (let i = 0; i < data.length; i += 4) {
+        // Convert to grayscale
+        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        
+        // Apply threshold for better contrast
+        const threshold = 128;
+        const value = avg < threshold ? 0 : 255;
+        
+        data[i] = value;     // R
+        data[i + 1] = value; // G
+        data[i + 2] = value; // B
+      }
+      
+      ctx.putImageData(imageData, 0, 0);
+      resolve(canvas.toDataURL());
+    };
+  });
+};
+
+// Add new toolbar components
+const ToolbarButton = ({ active, onClick, icon, label, className = '' }: { 
+  active?: boolean; 
+  onClick: () => void; 
+  icon: React.ReactNode; 
+  label: string;
+  className?: string;
+}) => (
+  <Button
+    variant={active ? "default" : "ghost"}
+    size="icon"
+    className={`relative group ${className}`}
+    onClick={onClick}
+  >
+    {icon}
+    <span className="sr-only">{label}</span>
+    <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 hidden group-hover:block bg-popover text-popover-foreground text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+      {label}
+    </div>
+  </Button>
+);
+
+const MobileToolbar = ({ 
+  tool, 
+  setTool, 
+  color, 
+  setColor, 
+  lineWidth, 
+  setLineWidth,
+  darkMode,
+  setDarkMode,
+  setShapes,
+  calculateResult,
+  isCalculating
+}: any) => (
+  <div className="fixed bottom-4 left-4 right-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg shadow-lg border p-2 z-50 lg:hidden">
+    <div className="flex items-center justify-between">
+      <ScrollArea className="w-auto max-w-[50%]">
+        <div className="flex gap-1">
+          {TOOLS.map((toolItem) => (
+            <ToolbarButton
+              key={toolItem.id}
+              active={tool === toolItem.id}
+              onClick={() => setTool(toolItem.id)}
+              icon={toolItem.icon}
+              label={toolItem.label}
+            />
+          ))}
+        </div>
+      </ScrollArea>
+
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setDarkMode(!darkMode)}
+        >
+          {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setShapes([])}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+        <Button
+          onClick={calculateResult}
+          disabled={isCalculating}
+          size="sm"
+          className="whitespace-nowrap"
+        >
+          {isCalculating ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Calculator className="h-4 w-4 mr-2" />
+          )}
+          Calculate
+        </Button>
+      </div>
+    </div>
+  </div>
+);
+
 export default function Skribble() {
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [tool, setTool] = useState<Tool>('pen');
@@ -95,6 +218,10 @@ export default function Skribble() {
   const isDrawing = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [stageScale, setStageScale] = useState<number>(1);
+  const [stagePosition, setStagePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastCenter = useRef<{ x: number; y: number } | null>(null);
+  const lastDist = useRef<number>(0);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -185,58 +312,129 @@ export default function Skribble() {
     setCurrentShape(null);
   };
 
+  const getDistance = (p1: Touch, p2: Touch) => {
+    return Math.sqrt(Math.pow(p2.clientX - p1.clientX, 2) + Math.pow(p2.clientY - p1.clientY, 2));
+  };
+
+  const handleTouch = (e: any) => {
+    e.evt.preventDefault();
+    const touch1 = e.evt.touches[0];
+    const touch2 = e.evt.touches[1];
+
+    if (touch1 && touch2) {
+      // Handle pinch
+      if (e.evt.type === 'touchmove') {
+        const dist = getDistance(touch1, touch2);
+        const center = {
+          x: (touch1.clientX + touch2.clientX) / 2,
+          y: (touch1.clientY + touch2.clientY) / 2,
+        };
+
+        if (!lastDist.current) {
+          lastDist.current = dist;
+        }
+        if (!lastCenter.current) {
+          lastCenter.current = center;
+        }
+
+        const scale = Math.min(Math.max(stageScale * (dist / lastDist.current), 0.5), 3);
+        const x = stagePosition.x + (center.x - lastCenter.current.x);
+        const y = stagePosition.y + (center.y - lastCenter.current.y);
+
+        setStageScale(scale);
+        setStagePosition({ x, y });
+
+        lastDist.current = dist;
+        lastCenter.current = center;
+      }
+    } else {
+      // Handle single touch drawing
+      const touch = e.evt.touches[0];
+      if (touch) {
+        const stage = e.target.getStage();
+        const pos = stage.getPointerPosition();
+        if (pos) {
+          if (e.evt.type === 'touchstart') {
+            handleMouseDown(e);
+          } else if (e.evt.type === 'touchmove') {
+            handleMouseMove(e);
+          }
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    lastCenter.current = null;
+    lastDist.current = 0;
+    handleMouseUp();
+  };
+
   const calculateResult = async () => {
     try {
       setIsCalculating(true);
       const stage = stageRef.current;
       if (!stage) return;
 
-      // Get stage data and resize it
+      // Get stage data and preprocess it
       let imageData = stage.toDataURL();
       imageData = await resizeImage(imageData);
+      imageData = await preprocessImage(imageData);
       const base64Data = imageData.split(',')[1];
 
       // Enhanced prompt for better mathematical analysis
-      const prompt = `You are a mathematical expression analyzer. Examine the handwritten mathematical content in the image and provide a detailed solution.
+      const prompt = `You are a highly specialized mathematical expression analyzer with expertise in handwritten mathematics recognition. Analyze the provided image with these specific guidelines:
 
-      Important: Your response must be valid JSON in the following format:
+      1. Recognition Priority:
+         - Mathematical symbols (×,÷,±,≠,≈,≤,≥,∫,∑,∏,√,∞)
+         - Fractions and mixed numbers
+         - Exponents and subscripts
+         - Matrices and vectors
+         - Calculus notation
+         - Greek letters (α,β,γ,θ,π,etc.)
+
+      2. Context Awareness:
+         - Identify if this is part of a larger equation system
+         - Detect if this is calculus, algebra, geometry, or other mathematical domains
+         - Consider standard mathematical notation conventions
+
+      3. Error Handling:
+         - If symbols are ambiguous, provide all possible interpretations
+         - For unclear numbers/variables, note the ambiguity
+         - Handle incomplete expressions appropriately
+
+      Response Format (JSON):
       [
         {
-          "expr": "original expression or equation",
-          "steps": ["step 1", "step 2", ...],
-          "result": "final answer",
-          "type": "expression|equation|variable|graph",
-          "assign": boolean
+          "expr": "detailed mathematical expression",
+          "type": "expression|equation|calculus|matrix|graph",
+          "domain": "algebra|calculus|geometry|statistics",
+          "confidence": 0-1 confidence score,
+          "steps": [
+            {
+              "step": "step description",
+              "operation": "what's being done",
+              "result": "intermediate result"
+            }
+          ],
+          "result": "final result with units if applicable",
+          "alternatives": ["possible alternative interpretations"],
+          "warnings": ["any ambiguity or recognition warnings"]
         }
       ]
 
-      Guidelines:
-      1. For basic expressions (e.g., 2 + 3 × 4):
-         - Show each step following PEMDAS
-         - Include intermediate calculations
-      
-      2. For equations (e.g., 2x + 5 = 15):
-         - Show isolation of variables
-         - Show all algebraic steps
-         - Set "type": "equation"
-      
-      3. For variable assignments:
-         - Set "assign": true
-         - Set "type": "variable"
-      
-      4. For graphical problems:
-         - Set "type": "graph"
-         - Describe key points, intersections, or relevant features
-      
-      5. For word problems:
-         - Break down the problem into mathematical steps
-         - Show the equation formation
-      
-      Ensure all mathematical operations are precise and verified.
-      Do not include any explanations outside the JSON structure.`;
+      Focus on mathematical accuracy and show all steps clearly.`;
 
-      // Generate content
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      // Generate content with enhanced model parameters
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.0-flash",
+        generationConfig: {
+          temperature: 0.3,
+          topP: 0.8,
+          topK: 40
+        }
+      });
+
       const result = await model.generateContent([
         prompt,
         { inlineData: { data: base64Data, mimeType: "image/png" } },
@@ -245,38 +443,80 @@ export default function Skribble() {
       const response = await result.response;
       const text = response.text();
       
-      // Enhanced result parsing
       try {
         const cleanText = text.replace(/```json\n|\n```/g, '');
-        const formattedResult = JSON.parse(cleanText);
+        const parsedResult = JSON.parse(cleanText);
         
-        // Validate the result structure
-        if (!Array.isArray(formattedResult)) {
+        // Validate and format the result structure
+        if (!Array.isArray(parsedResult)) {
           throw new Error('Invalid result format');
         }
         
-        setResults(formattedResult.map(item => ({
-          ...item,
-          expr: item.expr || 'Unknown expression',
-          result: Array.isArray(item.steps) && item.steps.length > 0
-            ? `${item.steps.join('\n')}\n\nFinal answer: ${item.result}`
-            : item.result || 'No result available'
-        })));
+        const formattedResults = parsedResult.map(item => {
+          // Ensure steps are properly formatted
+          const formattedSteps = Array.isArray(item.steps) 
+            ? item.steps.map((step: unknown) => {
+                if (typeof step === 'string') {
+                  // Convert string steps to proper Step objects
+                  return {
+                    step: step,
+                    operation: undefined,
+                    result: undefined
+                  };
+                } else if (typeof step === 'object' && step !== null) {
+                  // Ensure step object has required properties
+                  const stepObj = step as Record<string, unknown>;
+                  return {
+                    step: typeof stepObj.step === 'string' ? stepObj.step : 'Unknown step',
+                    operation: typeof stepObj.operation === 'string' ? stepObj.operation : undefined,
+                    result: typeof stepObj.result === 'string' ? stepObj.result : undefined
+                  };
+                }
+                return {
+                  step: 'Invalid step format',
+                  operation: undefined,
+                  result: undefined
+                };
+              })
+            : [];
+
+          return {
+            expr: item.expr || 'Unknown expression',
+            type: item.type || 'expression',
+            domain: item.domain,
+            confidence: item.confidence,
+            steps: formattedSteps,
+            result: item.result || 'No result available',
+            alternatives: Array.isArray(item.alternatives) ? item.alternatives : undefined,
+            warnings: Array.isArray(item.warnings) ? item.warnings : undefined
+          } as MathResult;
+        });
+
+        setResults(formattedResults);
       } catch (parseError) {
+        console.error('Parse error:', parseError);
         setResults([{
           expr: "Error parsing result",
-          result: "Could not process the mathematical expression correctly",
           type: "error" as ResultType,
-          steps: []
+          steps: [{
+            step: "Could not process the mathematical expression correctly",
+            operation: undefined,
+            result: undefined
+          }],
+          result: parseError instanceof Error ? parseError.message : "An unknown error occurred"
         }]);
       }
     } catch (error) {
       console.error('Error calculating result:', error);
       setResults([{ 
         expr: "Error", 
-        result: error instanceof Error ? error.message : "An unknown error occurred",
         type: "error" as ResultType,
-        steps: []
+        steps: [{
+          step: error instanceof Error ? error.message : "An unknown error occurred",
+          operation: undefined,
+          result: undefined
+        }],
+        result: "An error occurred while processing"
       }]);
     } finally {
       setIsCalculating(false);
@@ -306,8 +546,34 @@ export default function Skribble() {
               <div className="max-h-[150px] sm:max-h-[200px] overflow-y-auto">
                 {result.steps.map((step, index) => (
                   <div key={index} className="border-l-2 border-primary/20 pl-3 py-1 mb-2">
-                    <p className="text-xs sm:text-sm">{step}</p>
+                    <p className="text-xs sm:text-sm font-medium">{step.step}</p>
+                    {step.operation && (
+                      <p className="text-xs text-muted-foreground mt-1">{step.operation}</p>
+                    )}
+                    {step.result && (
+                      <p className="text-xs font-mono mt-1">{step.result}</p>
+                    )}
                   </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {result.alternatives && result.alternatives.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-medium text-sm">Alternative Interpretations</p>
+              <div className="space-y-1">
+                {result.alternatives.map((alt, index) => (
+                  <p key={index} className="text-xs text-muted-foreground">{alt}</p>
+                ))}
+              </div>
+            </div>
+          )}
+          {result.warnings && result.warnings.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-medium text-sm">Warnings</p>
+              <div className="space-y-1">
+                {result.warnings.map((warning, index) => (
+                  <p key={index} className="text-xs text-yellow-600 dark:text-yellow-400">{warning}</p>
                 ))}
               </div>
             </div>
@@ -332,8 +598,9 @@ export default function Skribble() {
         ]}
         className="mb-4"
       />
-      {/* Toolbar - Responsive Design */}
-      <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg shadow-lg border p-1 sm:p-2">
+      
+      {/* Desktop Toolbar */}
+      <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg shadow-lg border p-1 sm:p-2 hidden lg:block">
         <div className="flex flex-wrap items-center gap-1 sm:gap-2">
           {/* Tools - Responsive Grid */}
           <div className="flex flex-wrap items-center gap-1">
@@ -438,10 +705,40 @@ export default function Skribble() {
         </div>
       </div>
 
-      {/* Main Content - Responsive Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-2 sm:gap-4">
-        {/* Canvas */}
-        <div className="flex-1 border rounded-lg overflow-hidden min-h-[300px] sm:min-h-[400px]">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-2 sm:gap-4 relative">
+        {/* Canvas Container with Zoom Controls */}
+        <div className="flex-1 border rounded-lg overflow-hidden min-h-[300px] sm:min-h-[400px] relative">
+          <div className="absolute top-2 right-2 z-10 flex gap-2 bg-background/80 backdrop-blur rounded-lg p-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setStageScale(Math.min(stageScale * 1.2, 3))}
+              className="h-8 w-8"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setStageScale(Math.max(stageScale / 1.2, 0.5))}
+              className="h-8 w-8"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setStageScale(1);
+                setStagePosition({ x: 0, y: 0 });
+              }}
+              className="h-8 w-8"
+            >
+              <FunctionSquare className="h-4 w-4" />
+            </Button>
+          </div>
+          
           <Stage
             width={dimensions.width}
             height={dimensions.height}
@@ -449,6 +746,13 @@ export default function Skribble() {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
+            onTouchStart={handleTouch}
+            onTouchMove={handleTouch}
+            onTouchEnd={handleTouchEnd}
+            scaleX={stageScale}
+            scaleY={stageScale}
+            x={stagePosition.x}
+            y={stagePosition.y}
             ref={stageRef}
           >
             <Layer>
@@ -534,11 +838,11 @@ export default function Skribble() {
           </Stage>
         </div>
 
-        {/* Results Panel - Responsive */}
+        {/* Results Panel */}
         {results && (
-          <div className="fixed bottom-0 left-0 right-0 sm:relative sm:bottom-auto sm:left-auto sm:right-auto">
-            <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t sm:border rounded-lg p-3 sm:p-4 shadow-lg">
-              <div className="flex items-center justify-between mb-3">
+          <div className="fixed inset-x-0 bottom-0 lg:relative lg:w-80 xl:w-96 lg:bottom-auto lg:right-auto z-40 lg:z-0">
+            <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t lg:border rounded-t-lg lg:rounded-lg p-3 sm:p-4 shadow-lg max-h-[60vh] lg:max-h-full overflow-y-auto">
+              <div className="flex items-center justify-between mb-3 sticky top-0 bg-background/95 backdrop-blur py-2">
                 <h3 className="text-lg font-semibold">Results</h3>
                 <Button 
                   variant="ghost" 
@@ -549,7 +853,7 @@ export default function Skribble() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+              <div className="space-y-3">
                 {results.map((result, index) => (
                   <ResultCard key={index} result={result} />
                 ))}
@@ -558,6 +862,21 @@ export default function Skribble() {
           </div>
         )}
       </div>
+
+      {/* Mobile Toolbar */}
+      <MobileToolbar
+        tool={tool}
+        setTool={setTool}
+        color={color}
+        setColor={setColor}
+        lineWidth={lineWidth}
+        setLineWidth={setLineWidth}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+        setShapes={setShapes}
+        calculateResult={calculateResult}
+        isCalculating={isCalculating}
+      />
     </div>
   );
 }
