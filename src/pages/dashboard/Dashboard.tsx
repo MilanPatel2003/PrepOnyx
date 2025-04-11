@@ -8,9 +8,6 @@ import {
   School, 
   Brain, 
   CreditCard,
-  Zap,
-  Clock,
-  Award,
   Rocket,
   Sparkles
 } from "lucide-react";
@@ -57,7 +54,7 @@ const features = [
 ];
 
 const Dashboard = () => {
-  const { isSignedIn, userId } = useAuth();
+  const { isSignedIn } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
