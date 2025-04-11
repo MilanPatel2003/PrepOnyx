@@ -22,32 +22,45 @@ const InterviewFeedback = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!id) return;
+      
       try {
-        // Fetch interview details
-            const interviewDoc = await getDoc(doc(db, 'interviews', id!));
-            setInterview(interviewDoc.data() as Interview);
+        // Fetch both interview and answers in parallel
+        const [interviewDoc, answersSnapshot] = await Promise.all([
+          getDoc(doc(db, 'interviews', id)),
+          getDocs(query(collection(db, 'userAnswers'), where('mockIdRef', '==', id)))
+        ]);
 
-        // Fetch all answers for this interview
-        const answersRef = collection(db, 'userAnswers');
-        const q = query(answersRef, where('mockIdRef', '==', id));
-        const querySnapshot = await getDocs(q);
+        if (!interviewDoc.exists()) {
+          throw new Error('Interview not found');
+        }
+
+        const interviewData = { id: interviewDoc.id, ...interviewDoc.data() } as Interview;
+        setInterview(interviewData);
+
+        const answersData = answersSnapshot.docs
+          .map(doc => ({ ...doc.data(), id: doc.id }))
+          .sort((a, b) => a.questionIndex - b.questionIndex) as UserAnswer[];
         
-        const answersData = querySnapshot.docs.map(doc => ({
-          ...doc.data(),
-          id: doc.id
-        })) as UserAnswer[];
-        
-        // Sort by questionIndex
-        setAnswers(answersData.sort((a, b) => a.questionIndex - b.questionIndex));
-        setLoading(false);
+        setAnswers(answersData);
       } catch (error) {
         console.error('Error fetching feedback:', error);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchData();
   }, [id]);
+
+  // Memoize computed values
+  const stats = answers.reduce((acc, curr) => ({
+    average: acc.average + curr.rating / answers.length,
+    highest: Math.max(acc.highest, curr.rating)
+  }), { average: 0, highest: 0 });
+
+  const performanceLevel = stats.average >= 8 ? 'Excellent' : stats.average >= 6 ? 'Good' : 'Needs Improvement';
+  const performanceColor = stats.average >= 8 ? "success" : stats.average >= 6 ? "warning" : "destructive";
 
   if (loading) {
     return (
@@ -57,8 +70,13 @@ const InterviewFeedback = () => {
     );
   }
 
-  const averageScore = answers.reduce((acc, curr) => acc + curr.rating, 0) / answers.length;
-  const performanceLevel = averageScore >= 8 ? 'Excellent' : averageScore >= 6 ? 'Good' : 'Needs Improvement';
+  if (!interview) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">Interview not found</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-8">
@@ -70,13 +88,10 @@ const InterviewFeedback = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-4xl font-bold text-primary">
-              {averageScore.toFixed(1)}/10
+              {stats.average.toFixed(1)}/10
             </div>
-            <Progress value={averageScore * 10} className="h-2" />
-            <Badge variant={
-              averageScore >= 8 ? "success" : 
-              averageScore >= 6 ? "warning" : "destructive"
-            }>
+            <Progress value={stats.average * 10} className="h-2" />
+            <Badge variant={performanceColor}>
               {performanceLevel}
             </Badge>
           </CardContent>
@@ -138,7 +153,7 @@ const InterviewFeedback = () => {
                     <span className="font-medium">Highest Score</span>
                   </div>
                   <span className="text-xl font-bold text-green-500">
-                    {Math.max(...answers.map(a => a.rating))}/10
+                    {stats.highest}/10
                   </span>
                 </div>
               </div>
@@ -151,7 +166,7 @@ const InterviewFeedback = () => {
                     <span className="font-medium">Average Score</span>
                   </div>
                   <span className="text-xl font-bold text-yellow-500">
-                    {averageScore.toFixed(1)}/10
+                    {stats.average.toFixed(1)}/10
                   </span>
                 </div>
               </div>

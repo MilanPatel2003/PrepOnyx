@@ -1,6 +1,6 @@
 export type Tool = 'pen' | 'eraser' | 'rectangle' | 'circle' | 'line' | 'triangle' | 'arrow';
 
-export type ResultType = 'expression' | 'equation' | 'variable' | 'graph' | 'word_problem' | 'error';
+export type ResultType = 'expression' | 'equation' | 'variable' | 'graph' | 'word_problem' | 'error' | 'calculus' | 'matrix';
 
 export type Shape = {
   id: string;
@@ -16,13 +16,17 @@ export type Shape = {
 
 export type Step = {
   step: string;
-  calculation?: string;
+  operation?: string;
   result?: string;
 };
 
 export type MathResult = {
   expr: string;
-  steps: string[];
-  result: string;
   type: ResultType;
+  domain?: string;
+  confidence?: number;
+  steps: Step[];
+  result: string;
+  alternatives?: string[];
+  warnings?: string[];
 }; 

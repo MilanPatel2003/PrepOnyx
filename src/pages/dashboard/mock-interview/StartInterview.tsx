@@ -4,17 +4,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, addDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase.config';
 import { Interview as InterviewType, UserAnswer } from '@/types';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import Webcam from 'react-webcam';
-import { Mic, MicOff, Play, Video, VideoOff, Loader2, MessageSquare, Lightbulb, CheckCircle2, Star } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Loader2, MessageSquare, Lightbulb, CheckCircle2, Star } from 'lucide-react';
 import { LoaderPage } from '@/pages/LoaderPage';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import {  useUser } from '@clerk/clerk-react';
 import { toast } from 'sonner';
-import { chatSession } from '@/gemini';
+import { llmModels } from '@/llm';
+import { EmotionDetector } from '@/components/EmotionDetector';
+import { Progress } from '@/components/ui/progress';
 
 
 // Define types for Web Speech API
@@ -33,10 +32,29 @@ interface SpeechRecognitionResultList {
   item(index: number): SpeechRecognitionResult;
   [index: number]: SpeechRecognitionResult;
 }
+
+interface AIFeedbackResponse {
+  ratings: {
+    overall: number;
+    relevance: number;
+    clarity: number;
+    depth: number;
+    structure: number;
+  };
+  feedback: {
+    strengths: string[];
+    improvements: string[];
+    suggestions: string;
+    summary: string;
+  };
+  keywords: string[];
+}
+
 interface AIResponse {
-    ratings: number;
-    feedback: string;
-  }
+  ratings: number;
+  feedback: string;
+}
+
 interface SpeechRecognitionInterface extends EventTarget {
   continuous: boolean;
   interimResults: boolean;
@@ -52,6 +70,55 @@ declare global {
   }
 }
 
+interface InterviewMetrics {
+  confidence: number;
+  nervousness: number;
+  engagement: number;
+}
+
+// Simplified emotion metrics calculation
+const calculateInterviewMetrics = (emotions: { expression: string; probability: number }[]): InterviewMetrics => {
+  const defaultMetrics: InterviewMetrics = {
+    confidence: 50,
+    nervousness: 30,
+    engagement: 40
+  };
+
+  if (emotions.length === 0) return defaultMetrics;
+
+  const emotionMap = emotions.reduce((acc, emotion) => {
+    acc[emotion.expression] = emotion.probability;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const metrics = {
+    confidence: (
+      (emotionMap.happy || 0) * 150 +
+      (emotionMap.neutral || 0) * 100 -
+      (emotionMap.fearful || 0) * 200 -
+      (emotionMap.sad || 0) * 100 + 50
+    ),
+    nervousness: (
+      (emotionMap.fearful || 0) * 200 +
+      (emotionMap.surprised || 0) * 120 +
+      (emotionMap.angry || 0) * 80 -
+      (emotionMap.neutral || 0) * 150 + 30
+    ),
+    engagement: (
+      (emotionMap.neutral || 0) * 150 +
+      (emotionMap.happy || 0) * 120 -
+      (emotionMap.disgusted || 0) * 100 -
+      (emotionMap.sad || 0) * 100 + 40
+    )
+  };
+
+  return {
+    confidence: Math.max(0, Math.min(100, metrics.confidence)),
+    nervousness: Math.max(0, Math.min(100, metrics.nervousness)),
+    engagement: Math.max(0, Math.min(100, metrics.engagement))
+  };
+};
+
 const StartInterview = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -60,9 +127,14 @@ const StartInterview = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isWebcamOn, setIsWebcamOn] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
+  const [emotions, setEmotions] = useState<{[key: string]: number}>({});
+  const [metrics, setMetrics] = useState<InterviewMetrics>({
+    confidence: 0,
+    nervousness: 0,
+    engagement: 0
+  });
   const { user } = useUser();
   
-  const webcamRef = useRef<Webcam>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
 
   // Use transcript from useSpeechRecognition instead of local state
@@ -76,68 +148,56 @@ const StartInterview = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
 
-  // Fetch interview data
+  // Simplified fetch interview
   useEffect(() => {
     const fetchInterview = async () => {
       if (!id) return;
       try {
-        const docRef = doc(db, "interviews", id);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await getDoc(doc(db, "interviews", id));
         if (docSnap.exists()) {
           setInterview({ id: docSnap.id, ...docSnap.data() } as InterviewType);
+        } else {
+          toast.error("Interview not found");
+          navigate("/dashboard/mock-interview");
         }
       } catch (error) {
         console.error("Error fetching interview:", error);
+        toast.error("Failed to load interview");
       } finally {
         setLoading(false);
       }
     };
 
     fetchInterview();
-  }, [id]);
+  }, [id, navigate]);
 
-  // Initialize speech synthesis
+  // Simplified speech synthesis initialization
   useEffect(() => {
     synthRef.current = window.speechSynthesis;
-
-    // Speak first question when component mounts
-    if (interview?.questions[0]?.question) {
-      const utterance = new SpeechSynthesisUtterance(interview.questions[0].question);
-      synthRef.current?.speak(utterance);
-    }
-
     return () => {
       synthRef.current?.cancel();
-      if (isRecording) {
-        SpeechRecognition.stopListening();
-      }
+      isRecording && SpeechRecognition.stopListening();
     };
-  }, [interview]);
+  }, [isRecording]);
 
-  // Speak question whenever currentQuestionIndex changes
+  // Speak question on change
   useEffect(() => {
-    if (interview?.questions[currentQuestionIndex]?.question) {
-      speakQuestion();
-    }
+    interview?.questions[currentQuestionIndex]?.question && speakQuestion();
   }, [currentQuestionIndex, interview]);
 
   const speakQuestion = () => {
     if (!interview?.questions[currentQuestionIndex]?.question || !synthRef.current) return;
     
-    // Cancel any ongoing speech
     synthRef.current.cancel();
     setIsSpeaking(true);
-    setHighlightedWords([]);
     
     const question = interview.questions[currentQuestionIndex].question;
     const words = question.split(' ');
     const utterance = new SpeechSynthesisUtterance(question);
     
-    let wordIndex = 0;
     utterance.onboundary = (event) => {
       if (event.name === 'word') {
-        setHighlightedWords(words.slice(0, wordIndex + 1));
-        wordIndex++;
+        setHighlightedWords(prev => [...words.slice(0, words.indexOf(prev[prev.length - 1]) + 2)]);
       }
     };
 
@@ -165,6 +225,41 @@ const StartInterview = () => {
     setIsWebcamOn(!isWebcamOn);
   };
 
+  // Add interval for continuous emotion detection
+  useEffect(() => {
+    let emotionInterval: NodeJS.Timeout;
+
+    if (isWebcamOn && isRecording) {
+      // Update emotions more frequently during recording
+      emotionInterval = setInterval(() => {
+        if (Object.keys(emotions).length > 0) {
+          const emotionsArray = Object.entries(emotions).map(([expression, value]) => ({
+            expression,
+            probability: value / 100 // Convert percentage back to 0-1 range
+          }));
+          const newMetrics = calculateInterviewMetrics(emotionsArray);
+          setMetrics(newMetrics);
+        }
+      }, 500); // Update every 500ms
+    }
+
+    return () => {
+      if (emotionInterval) {
+        clearInterval(emotionInterval);
+      }
+    };
+  }, [isWebcamOn, isRecording, emotions]);
+
+  const handleEmotionDetected = (newEmotions: {[key: string]: number}) => {
+    setEmotions(newEmotions);
+    const emotionsArray = Object.entries(newEmotions).map(([expression, probability]) => ({
+      expression,
+      probability: probability / 100 // Convert percentage back to 0-1 range
+    }));
+    const newMetrics = calculateInterviewMetrics(emotionsArray);
+    setMetrics(newMetrics);
+  };
+
   const saveUserAnswer = async (answer: Omit<UserAnswer, 'id' | 'createdAt' | 'updateAt'>) => {
     try {
       const userAnswersRef = collection(db, 'userAnswers');
@@ -177,20 +272,23 @@ const StartInterview = () => {
       
       const querySnapshot = await getDocs(q);
       
-      const answerData = {
-        ...answer,
-        questionIndex: currentQuestionIndex,
-        updateAt: new Date()
-      };
+      // Clean up the answer data by removing undefined values
+      const cleanAnswer = Object.fromEntries(
+        Object.entries({
+          ...answer,
+          questionIndex: currentQuestionIndex,
+          updateAt: new Date()
+        }).filter(([_, v]) => v !== undefined)
+      );
 
       if (!querySnapshot.empty) {
         // Update existing answer
         const existingDoc = querySnapshot.docs[0];
-        await updateDoc(doc(db, 'userAnswers', existingDoc.id), answerData);
+        await updateDoc(doc(db, 'userAnswers', existingDoc.id), cleanAnswer);
       } else {
         // Create new answer
         await addDoc(userAnswersRef, {
-          ...answerData,
+          ...cleanAnswer,
           createdAt: new Date()
         });
       }
@@ -210,20 +308,51 @@ const StartInterview = () => {
     }
   };
 
-  const getAIFeedback = async (qst: string, userAns: string, qstAns: string) => {
+  const getAIFeedback = async (qst: string, userAns: string, qstAns: string): Promise<AIResponse> => {
     const prompt = `
+      You are an expert interviewer and evaluator. Analyze the following interview response:
+
       Question: "${qst}"
-      User Answer: "${userAns}"
-      Correct Answer: "${qstAns}"
-      Please compare the user's answer to the correct answer, and provide a rating (from 1 to 10) based on answer quality, and offer feedback for improvement.
-      Return the result in JSON format with the fields "ratings" (number) and "feedback" (string).
+      User's Answer: "${userAns}"
+      Expected Answer Key Points: "${qstAns}"
+
+      Provide a detailed evaluation in JSON format with the following structure:
+      {
+        "ratings": {
+          "overall": number (1-10),
+          "relevance": number (1-10),
+          "clarity": number (1-10),
+          "depth": number (1-10),
+          "structure": number (1-10)
+        },
+        "feedback": {
+          "strengths": string[] (list of strong points),
+          "improvements": string[] (specific areas to improve),
+          "suggestions": string (constructive advice),
+          "summary": string (overall feedback)
+        },
+        "keywords": string[] (key technical terms or concepts mentioned)
+      }
+
+      Evaluation criteria:
+      - Relevance: How well the answer addresses the question
+      - Clarity: Communication clarity and articulation
+      - Depth: Technical depth and understanding
+      - Structure: Organization and flow of the response
+      - Overall: Combined assessment of all aspects
+
+      Be specific, constructive, and actionable in your feedback.
     `;
 
     try {
-      const result = await chatSession.sendMessage(prompt);
-      const response = await result.response;
-      const aiResponse = cleanJsonResponse(response.text()) as AIResponse;
-      return aiResponse;
+      const result = await llmModels.googleGemini.invoke(prompt);
+      const aiResponse = cleanJsonResponse(result.content as string) as AIFeedbackResponse;
+      
+      // Format the response for our existing structure
+      return {
+        ratings: aiResponse.ratings.overall,
+        feedback: `${aiResponse.feedback.summary}\n\nStrengths:\n${aiResponse.feedback.strengths.map((s: string) => `• ${s}`).join('\n')}\n\nAreas to Improve:\n${aiResponse.feedback.improvements.map((i: string) => `• ${i}`).join('\n')}\n\nSuggestions:\n${aiResponse.feedback.suggestions}`
+      };
     } catch (error) {
       console.error('AI Processing Error:', error);
       throw error;
@@ -243,7 +372,21 @@ const StartInterview = () => {
         currentQuestion.answer
       );
 
-      const userAnswer: Omit<UserAnswer, 'id' | 'createdAt' | 'updateAt'> = {
+      // Get the average emotions during the answer
+      const emotionEntries = Object.entries(emotions);
+      const emotionSummary = emotionEntries.length > 0 ? {
+        expression: emotionEntries[0][0],
+        confidence: emotionEntries[0][1] / 100,
+        metrics: {
+          confidence: metrics.confidence,
+          nervousness: metrics.nervousness,
+          engagement: metrics.engagement,
+          overall: (metrics.confidence + (100 - metrics.nervousness) + metrics.engagement) / 3
+        }
+      } : null;
+
+      // Save the answer
+      await saveUserAnswer({
         mockIdRef: interview.id,
         question: currentQuestion.question,
         correct_ans: currentQuestion.answer,
@@ -251,21 +394,22 @@ const StartInterview = () => {
         feedback: aiResponse.feedback,
         rating: aiResponse.ratings,
         userId: user?.id || '',
-        questionIndex: currentQuestionIndex
-      };
+        questionIndex: currentQuestionIndex,
+        emotionalState: emotionSummary
+      });
 
-      await saveUserAnswer(userAnswer);
-      toast.success('Answer saved successfully');
-
-      if (currentQuestionIndex < interview.questions.length - 1) {
-        setCurrentQuestionIndex(prev => prev + 1);
-        resetTranscript();
+      // If this is the last question, navigate to results
+      if (currentQuestionIndex === interview.questions.length - 1) {
+        navigate(`/dashboard/mock-interview/results/${interview.id}`);
       } else {
-        toast.success('Interview completed!');
-        navigate(`/dashboard/mock-interview/${interview.id}/feedback`);
+        // Move to next question
+        setCurrentQuestionIndex((prev) => prev + 1);
+        resetTranscript();
+        setEmotions({});
       }
     } catch (error) {
-      toast.error('Failed to process your answer. Please try again.');
+      console.error('Error processing answer:', error);
+      toast.error('Failed to process answer. Please try again.');
     } finally {
       setIsAIProcessing(false);
     }
@@ -279,227 +423,166 @@ const StartInterview = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 lg:p-8 min-h-screen bg-gradient-to-br from-background via-background/95 to-secondary/20">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header Section */}
-        <div className="flex flex-col space-y-4 text-center sm:text-left">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-violet-500 via-primary to-indigo-500 bg-clip-text text-transparent">
-              {interview.position}
-            </h1>
-            <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
-              <Badge variant="default" className="px-3 py-1.5">
-                {interview.experience}+ YOE
-              </Badge>
-              {interview.techStack.split(',').map((tech, index) => (
-                <Badge 
-                  key={index} 
-                  variant="secondary"
-                  className="px-3 py-1.5 bg-white/5 border border-primary/10"
-                >
-                  {tech.trim()}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <Tabs defaultValue="interview" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
-            <TabsTrigger value="interview" className="text-base">Interview</TabsTrigger>
-            <TabsTrigger value="preparation" className="text-base">Preparation</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="interview" className="space-y-6 mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Webcam Section */}
-              <Card className="border border-primary/10 bg-white/5 backdrop-blur-sm">
-                <CardHeader className="flex flex-row items-center justify-between border-b border-primary/10">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Video className="h-5 w-5 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-semibold">Video Feed</h3>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={toggleWebcam}
-                    className="hover:bg-primary/10"
-                  >
-                    {isWebcamOn ? <VideoOff className="h-4 w-4" /> : <Video className="h-4 w-4" />}
-                  </Button>
-                </CardHeader>
-                <CardContent className="p-4">
-                  <div className="aspect-video bg-black/20 rounded-xl overflow-hidden border border-primary/10">
-                    {isWebcamOn && (
-                      <Webcam
-                        ref={webcamRef}
-                        audio={false}
-                        mirrored
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Question and Answer Section */}
-              <Card className="border border-primary/10 bg-white/5 backdrop-blur-sm">
-                <CardHeader className="border-b border-primary/10">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <MessageSquare className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-semibold">
-                          Question {currentQuestionIndex + 1} of {interview.questions.length}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">Answer clearly and concisely</p>
-                      </div>
-                    </div>
-                    <div className="hidden sm:block">
-                      <Badge variant="outline" className="bg-primary/5">
-                        {Math.round((currentQuestionIndex / interview.questions.length) * 100)}% Complete
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  {/* Question Display */}
-                  <div className="rounded-lg p-4 bg-primary/5 border border-primary/10">
-                    <p className="text-lg break-words whitespace-pre-wrap leading-relaxed">
-                      {interview.questions[currentQuestionIndex]?.question.split(' ').map((word, index) => (
-                        <span
-                          key={index}
-                          className={`${
-                            highlightedWords.includes(word)
-                              ? 'bg-primary/20 text-primary'
-                              : ''
-                          } transition-colors duration-200 mr-1 inline-block`}
-                        >
-                          {word}
-                        </span>
-                      ))}
-                    </p>
-                  </div>
-                  
-                  {/* Controls */}
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-3">
-                      <Button 
-                        onClick={speakQuestion} 
-                        disabled={isSpeaking}
-                        className="flex-1 sm:flex-none bg-primary/10 text-primary hover:bg-primary/20"
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        {isSpeaking ? 'Speaking...' : 'Replay Question'}
-                      </Button>
-                      <Button 
-                        onClick={toggleRecording} 
-                        variant={isRecording ? "destructive" : "default"}
-                        className="flex-1 sm:flex-none"
-                      >
-                        {isRecording ? (
-                          <>
-                            <MicOff className="h-4 w-4 mr-2" />
-                            Stop Recording
-                          </>
-                        ) : (
-                          <>
-                            <Mic className="h-4 w-4 mr-2" />
-                            Start Recording
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    
-                    {/* Answer Display */}
-                    <div className="min-h-[150px] p-4 border rounded-lg bg-white/5 backdrop-blur-sm">
-                      <div className="text-sm text-muted-foreground mb-2">Your Answer:</div>
-                      <div className="text-base leading-relaxed">
-                        {transcript || "Start speaking to record your answer..."}
-                      </div>
-                    </div>
-                    
-                    {/* Next Button */}
-                    <div className="flex justify-end">
-                      <Button 
-                        onClick={handleNextQuestion}
-                        disabled={isAIProcessing}
-                        className="bg-gradient-to-r from-violet-500 to-primary hover:from-violet-600 hover:to-primary/90 text-white shadow-lg hover:shadow-primary/25 transition-all duration-300"
-                      >
-                        {isAIProcessing ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Processing...
-                          </>
-                        ) : currentQuestionIndex === interview.questions.length - 1 ? (
-                          'Finish Interview'
-                        ) : (
-                          'Next Question'
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="preparation" className="mt-6">
-            <Card className="border border-primary/10 bg-white/5 backdrop-blur-sm">
-              <CardHeader className="border-b border-primary/10">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Lightbulb className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="text-xl font-semibold">Interview Tips & Guidelines</h3>
-                </div>
+    <div className="container mx-auto p-4 space-y-6">
+      {loading ? (
+        <LoaderPage />
+      ) : !interview ? (
+        <div>Interview not found</div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Interview Area - Takes up 2 columns */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Question Display */}
+            <Card>
+              <CardHeader>
+                <h2 className="text-2xl font-bold">
+                  Question {currentQuestionIndex + 1} of {interview.questions.length}
+                </h2>
               </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid sm:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h4 className="font-semibold text-lg">Technical Tips</h4>
-                    <ul className="space-y-3">
-                      {[
-                        'Ensure stable internet connection',
-                        'Test audio before starting',
-                        'Position camera at eye level',
-                        'Choose a well-lit environment',
-                        'Minimize background noise'
-                      ].map((tip, index) => (
-                        <li key={index} className="flex items-start gap-2 text-muted-foreground">
-                          <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                          <span>{tip}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="space-y-4">
-                    <h4 className="font-semibold text-lg">Interview Best Practices</h4>
-                    <ul className="space-y-3">
-                      {[
-                        'Speak clearly and confidently',
-                        'Maintain eye contact with camera',
-                        'Take brief pauses when needed',
-                        'Structure your answers logically',
-                        'Ask for clarification if needed'
-                      ].map((tip, index) => (
-                        <li key={index} className="flex items-start gap-2 text-muted-foreground">
-                          <Star className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                          <span>{tip}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+              <CardContent>
+                <p className="text-lg whitespace-pre-wrap">
+                  {interview.questions[currentQuestionIndex]?.question}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Webcam and Controls */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="relative aspect-video bg-muted rounded-lg overflow-hidden mb-4">
+                  {isWebcamOn && (
+                    <EmotionDetector onEmotionDetected={handleEmotionDetected} />
+                  )}
+                  {!isWebcamOn && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                      <VideoOff className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-center gap-4">
+                  <Button
+                    variant={isWebcamOn ? "default" : "outline"}
+                    onClick={toggleWebcam}
+                  >
+                    {isWebcamOn ? (
+                      <>
+                        <Video className="h-4 w-4" />
+                        Camera On
+                      </>
+                    ) : (
+                      <>
+                        <VideoOff className="h-4 w-4" />
+                        Camera Off
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant={isRecording ? "default" : "outline"}
+                    onClick={toggleRecording}
+                  >
+                    {isRecording ? (
+                      <>
+                        <Mic className="h-4 w-4" />
+                        Stop Recording
+                      </>
+                    ) : (
+                      <>
+                        <MicOff className="h-4 w-4" />
+                        Start Recording
+                      </>
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+
+            {/* Answer Area */}
+            <Card>
+              <CardHeader>
+                <h3 className="text-xl font-semibold">Your Answer</h3>
+              </CardHeader>
+              <CardContent>
+                <div className="min-h-[100px] p-4 rounded-lg bg-muted/50">
+                  {transcript || "Your answer will appear here as you speak..."}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Navigation */}
+            <div className="flex justify-between">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
+                disabled={currentQuestionIndex === 0}
+              >
+                Previous Question
+              </Button>
+              <Button
+                onClick={handleNextQuestion}
+                disabled={isAIProcessing}
+                variant={currentQuestionIndex === interview.questions.length - 1 ? "default" : "outline"}
+              >
+                {isAIProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Processing...
+                  </>
+                ) : currentQuestionIndex === interview.questions.length - 1 ? (
+                  'Finish Interview'
+                ) : (
+                  'Next Question'
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Real-time Emotions Display */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <h3 className="text-xl font-semibold">Real-time Emotions</h3>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {Object.entries(emotions).map(([expression, value]) => (
+                  <div key={expression} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="capitalize">{expression}</span>
+                      <span>{value}%</span>
+                    </div>
+                    <Progress value={value} className="h-2" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Tips Section */}
+            <Card>
+              <CardHeader>
+                <h3 className="text-xl font-semibold">Interview Tips</h3>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <MessageSquare className="h-5 w-5 text-blue-500 mt-1" />
+                  <p>Speak clearly and maintain a steady pace</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Lightbulb className="h-5 w-5 text-yellow-500 mt-1" />
+                  <p>Use specific examples to support your answers</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-green-500 mt-1" />
+                  <p>Stay focused and maintain good eye contact</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Star className="h-5 w-5 text-purple-500 mt-1" />
+                  <p>Show enthusiasm and positive energy</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
