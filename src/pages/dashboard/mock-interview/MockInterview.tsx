@@ -1,7 +1,7 @@
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, where, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, writeBatch } from "firebase/firestore";
 import { db } from "@/config/firebase.config";
 import { useAuth } from "@clerk/clerk-react";
 import { Interview } from "@/types";
@@ -16,53 +16,103 @@ const MockInterview = () => {
   const { userId } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchInterviews = async () => {
-      if (!userId) return;
+  const fetchInterviews = useCallback(async () => {
+    if (!userId) return;
+    
+    try {
+      const q = query(
+        collection(db, "interviews"),
+        where("userId", "==", userId)
+      );
+      const querySnapshot = await getDocs(q);
+      const interviewData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Interview[];
       
-      try {
-        const q = query(
-          collection(db, "interviews"),
-          where("userId", "==", userId)
-        );
-        const querySnapshot = await getDocs(q);
-        const interviewData = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Interview[];
-        
-        setInterviews(interviewData);
-      } catch (error) {
-        console.error("Error fetching interviews:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInterviews();
+      setInterviews(interviewData.sort((a, b) => 
+        b.createdAt.toMillis() - a.createdAt.toMillis()
+      ));
+    } catch (error) {
+      console.error("Error fetching interviews:", error);
+      toast.error("Failed to load interviews");
+    } finally {
+      setLoading(false);
+    }
   }, [userId]);
+
+  useEffect(() => {
+    fetchInterviews();
+  }, [fetchInterviews]);
 
   const handleDeleteInterview = async (id: string) => {
     try {
-      // First delete all user answers associated with this interview
-      const userAnswersRef = collection(db, 'userAnswers');
-      const q = query(userAnswersRef, where('mockIdRef', '==', id));
-      const querySnapshot = await getDocs(q);
+      const batch = writeBatch(db);
       
-      // Delete each user answer document
-      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-
-      // Then delete the interview itself
-      await deleteDoc(doc(db, "interviews", id));
+      // Get all user answers for this interview
+      const userAnswersSnapshot = await getDocs(
+        query(collection(db, 'userAnswers'), where('mockIdRef', '==', id))
+      );
+      
+      // Add all deletes to batch
+      userAnswersSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      // Add interview delete to batch
+      batch.delete(doc(db, "interviews", id));
+      
+      // Execute all deletes in one atomic operation
+      await batch.commit();
       
       // Update local state
       setInterviews(prev => prev.filter(interview => interview.id !== id));
-      toast.success("Interview and associated answers deleted successfully");
+      toast.success("Interview deleted successfully");
     } catch (error) {
       console.error("Error deleting interview:", error);
       toast.error("Failed to delete interview");
     }
+  };
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="h-[250px] sm:h-[280px] lg:h-[300px] rounded-lg bg-muted animate-pulse"
+            />
+          ))}
+        </div>
+      );
+    }
+
+    if (interviews.length === 0) {
+      return (
+        <EmptyState
+          icon={MessageSquare}
+          title="No interviews yet"
+          description="Create your first mock interview to get started"
+          action={{
+            label: "Create Interview",
+            onClick: () => navigate("/dashboard/mock-interview/create"),
+          }}
+        />
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        {interviews.map((interview) => (
+          <InterviewCard 
+            key={interview.id} 
+            interview={interview}
+            onDelete={handleDeleteInterview}
+          />
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -74,7 +124,7 @@ const MockInterview = () => {
         usageSteps={[
           "Create a new interview with your desired position",
           "Answer AI-generated questions in real-time",
-          "Receive instant feedback on your responses",
+          "Get instant feedback and emotion insights",
           "Review your performance metrics"
         ]}
         showAddButton
@@ -82,36 +132,7 @@ const MockInterview = () => {
         className="mb-6"
       />
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="h-[250px] sm:h-[280px] lg:h-[300px] rounded-lg bg-muted animate-pulse"
-            />
-          ))}
-        </div>
-      ) : interviews.length === 0 ? (
-        <EmptyState
-          icon={MessageSquare}
-          title="No interviews yet"
-          description="Create your first mock interview to get started"
-          action={{
-            label: "Create Interview",
-            onClick: () => navigate("/dashboard/mock-interview/create"),
-          }}
-        />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {interviews.map((interview) => (
-            <InterviewCard 
-              key={interview.id} 
-              interview={interview}
-              onDelete={handleDeleteInterview}
-            />
-          ))}
-        </div>
-      )}
+      {renderContent()}
     </div>
   );
 };

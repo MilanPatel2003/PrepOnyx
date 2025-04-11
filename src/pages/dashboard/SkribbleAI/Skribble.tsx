@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import Draggable from 'react-draggable';
-import { Tool, Shape, MathResult, ResultType, Step } from '@/types/skribble';
+import { Tool, Shape, MathResult, ResultType } from '@/types/skribble';
 import { FeatureHeader } from "@/components/FeatureHeader";
 
 // Initialize Gemini AI
@@ -146,10 +146,6 @@ const ToolbarButton = ({ active, onClick, icon, label, className = '' }: {
 const MobileToolbar = ({ 
   tool, 
   setTool, 
-  color, 
-  setColor, 
-  lineWidth, 
-  setLineWidth,
   darkMode,
   setDarkMode,
   setShapes,

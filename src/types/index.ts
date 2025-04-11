@@ -16,7 +16,20 @@ export interface Interview {
   experience: number;
   userId: string;
   techStack: string;
-  questions: { question: string; answer: string }[];
+  difficultyLevel: "beginner" | "intermediate" | "advanced" | "expert";
+  interviewType: "technical" | "behavioral" | "system-design";
+  numberOfQuestions: number;
+  specificTopics?: string;
+  keySkills: string;
+  interviewGoals: string;
+  questions: {
+    question: string;
+    answer: string;
+    keyPoints?: string[];
+    commonPitfalls?: string[];
+    followUpQuestions?: string[];
+    conceptsTested?: string[];
+  }[];
   createdAt: Timestamp;
   updateAt: Timestamp;
 }
@@ -24,15 +37,25 @@ export interface Interview {
 export interface UserAnswer {
   id: string;
   mockIdRef: string;
+  userId: string;
   question: string;
   correct_ans: string;
   user_ans: string;
   feedback: string;
   rating: number;
-  userId: string;
   questionIndex: number;
   createdAt: Timestamp;
   updateAt: Timestamp;
+  emotionalState: {
+    expression: string;
+    confidence: number;
+    metrics: {
+      confidence: number;
+      nervousness: number;
+      engagement: number;
+      overall: number;
+    };
+  } | null;
 }
 
 export type Tool = 'pen' | 'eraser';

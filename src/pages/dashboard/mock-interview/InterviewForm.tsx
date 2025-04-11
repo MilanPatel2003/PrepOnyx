@@ -24,58 +24,51 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { llmModels } from "@/llm"; // Import the llmModels
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const formSchema = z.object({
   position: z.string().min(1, "Position is required"),
   description: z.string().min(1, "Description is required"),
   experience: z.coerce.number().min(0, "Experience must be a positive number"),
   techStack: z.string().min(1, "Tech stack is required"),
+  difficultyLevel: z.enum(["beginner", "intermediate", "advanced", "expert"]),
+  interviewType: z.enum(["technical", "behavioral", "system-design"]),
+  numberOfQuestions: z.coerce.number().min(1).max(20),
+  specificTopics: z.string().optional(),
+  keySkills: z.string().min(1, "Key skills are required"),
+  interviewGoals: z.string().min(1, "Interview goals are required"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 const cleanAiResponse = (responseText: string) => {
-  // Step 1: Trim any surrounding whitespace
-  let cleanText = responseText.trim();
-
-  // Step 2: Remove any occurrences of "json" or code block symbols (``` or `)
-  cleanText = cleanText.replace(/(json|```|`)/g, "");
-
-  // Step 3: Extract a JSON array by capturing text between square brackets
-  const jsonArrayMatch = cleanText.match(/\[.*\]/s);
-  if (jsonArrayMatch) {
-    cleanText = jsonArrayMatch[0];
-  } else {
-    throw new Error("No JSON array found in response");
-  }
-
-  // Step 4: Parse the clean JSON text into an array of objects
   try {
-    return JSON.parse(cleanText);
+    const cleanText = responseText.trim().replace(/(json|```|`)/g, "");
+    const jsonArrayMatch = cleanText.match(/\[.*\]/s);
+    return jsonArrayMatch ? JSON.parse(jsonArrayMatch[0]) : [];
   } catch (error) {
-    throw new Error("Invalid JSON format: " + (error as Error)?.message);
+    console.error("Error parsing AI response:", error);
+    throw new Error("Invalid response format");
   }
 };
 
 const containerVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.5,
-      staggerChildren: 0.1
-    }
+    transition: { duration: 0.3, staggerChildren: 0.1 }
   }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, x: -20 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: { duration: 0.3 }
-  }
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 }
 };
 
 const InterviewForm = () => {
@@ -92,34 +85,58 @@ const InterviewForm = () => {
       description: "",
       experience: 0,
       techStack: "",
+      difficultyLevel: "intermediate",
+      interviewType: "technical",
+      numberOfQuestions: 5,
+      specificTopics: "",
+      keySkills: "",
+      interviewGoals: "",
     },
   });
 
   const generateQuestionsAndAnswers = async (data: FormValues) => {
     const prompt = `
-      As an experienced prompt engineer, generate a JSON array containing 5 technical interview questions along with detailed answers based on the following job information. Each object in the array should have the fields "question" and "answer", formatted as follows:
+      As an expert technical interviewer, generate a comprehensive interview question set based on the following parameters:
 
+      Job Details:
+      - Position: ${data.position}
+      - Description: ${data.description}
+      - Experience Level: ${data.experience} years
+      - Tech Stack: ${data.techStack}
+      - Difficulty Level: ${data.difficultyLevel}
+      - Interview Type: ${data.interviewType}
+      - Number of Questions: ${data.numberOfQuestions}
+      - Key Skills: ${data.keySkills}
+      - Specific Topics: ${data.specificTopics || 'Not specified'}
+      - Interview Goals: ${data.interviewGoals}
+
+      Generate exactly ${data.numberOfQuestions} questions that:
+      1. Match the difficulty level and experience requirements
+      2. Focus on conceptual understanding and problem-solving
+      3. Include system design considerations for relevant questions
+      4. Add behavioral scenarios for soft skills assessment
+      5. Test understanding without code implementation
+      6. Progress in difficulty
+      7. Cover both theory and practical experience
+      8. Include targeted follow-up questions
+
+      Return in JSON format:
       [
-        { "question": "<Question text>", "answer": "<Answer text>" },
-        ...
+        {
+          "question": "Question text",
+          "answer": "Answer including:
+                    - Key concepts
+                    - Expected points
+                    - Design considerations
+                    - Common misconceptions
+                    - Follow-up questions
+                    - Good/poor response examples"
+        }
       ]
-
-      Job Information:
-      - Job Position: ${data.position}
-      - Job Description: ${data.description}
-      - Years of Experience Required: ${data.experience}
-      - Tech Stacks: ${data.techStack}
-
-      The questions should assess skills in ${data.techStack} development and best practices, problem-solving, and experience handling complex requirements. Please format the output strictly as an array of JSON objects without any additional labels, code blocks, or explanations. Return only the JSON array with questions and answers.
     `;
 
-    try {
-      const result = await llmModels.googleGemini.invoke(prompt);
-      return cleanAiResponse(result.content as string);
-    } catch (error) {
-      console.error("Error generating questions and answers:", error);
-      throw new Error("Failed to generate questions and answers");
-    }
+    const result = await llmModels.googleGemini.invoke(prompt);
+    return cleanAiResponse(result.content as string);
   };
 
   useEffect(() => {
@@ -137,6 +154,12 @@ const InterviewForm = () => {
               description: data.description,
               experience: data.experience,
               techStack: data.techStack,
+              difficultyLevel: data.difficultyLevel,
+              interviewType: data.interviewType,
+              numberOfQuestions: data.numberOfQuestions,
+              specificTopics: data.specificTopics,
+              keySkills: data.keySkills,
+              interviewGoals: data.interviewGoals,
             });
           } else {
             toast.error("Interview not found");
@@ -164,24 +187,22 @@ const InterviewForm = () => {
       const interviewData = {
         ...values,
         userId,
-        questions, // Add the generated questions here
+        questions,
         updateAt: serverTimestamp(),
       };
 
       if (isEditMode && id) {
-        // Update existing interview
         await updateDoc(doc(db, "interviews", id), interviewData);
         toast.success("Interview updated successfully");
+        navigate(`/dashboard/mock-interview/${id}/feedback`);
       } else {
-        // Create new interview
-        await addDoc(collection(db, "interviews"), {
+        const docRef = await addDoc(collection(db, "interviews"), {
           ...interviewData,
           createdAt: serverTimestamp(),
         });
         toast.success("Interview created successfully");
+        navigate(`/dashboard/mock-interview/${docRef.id}/feedback`);
       }
-
-      navigate("/dashboard/mock-interview");
     } catch (error) {
       console.error("Error saving interview:", error);
       toast.error("Failed to save interview");
@@ -218,77 +239,188 @@ const InterviewForm = () => {
             className="space-y-6 rounded-lg border border-border/50 p-6 backdrop-blur-sm bg-card/30"
             variants={itemVariants}
           >
-            <FormField
-              control={form.control}
-              name="position"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base font-medium">Position</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="e.g. Senior Frontend Developer" 
-                      className="h-12 text-base transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base font-medium">Job Description</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Describe the role and requirements"
-                      className="min-h-[120px] text-base resize-none transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Basic Information</h3>
               <FormField
                 control={form.control}
-                name="experience"
+                name="position"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base font-medium">Years of Experience</FormLabel>
+                    <FormLabel>Position</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        min="0"
-                        placeholder="e.g. 3"
-                        className="h-12 text-base transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                        {...field} 
-                      />
+                      <Input placeholder="e.g. Senior Frontend Developer" {...field} />
                     </FormControl>
-                    <FormMessage className="text-sm" />
+                    <FormMessage />
                   </FormItem>
                 )}
               />
 
               <FormField
                 control={form.control}
-                name="techStack"
+                name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base font-medium">Tech Stack</FormLabel>
+                    <FormLabel>Job Description</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="e.g. React, Node.js, TypeScript"
-                        className="h-12 text-base transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                      <Textarea
+                        placeholder="Describe the role and requirements"
+                        className="min-h-[100px]"
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage className="text-sm" />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Interview Configuration */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Interview Configuration</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="interviewType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Interview Type</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select interview type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="technical">Technical</SelectItem>
+                          <SelectItem value="behavioral">Behavioral</SelectItem>
+                          <SelectItem value="system-design">System Design</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="difficultyLevel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Difficulty Level</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select difficulty" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="beginner">Beginner</SelectItem>
+                          <SelectItem value="intermediate">Intermediate</SelectItem>
+                          <SelectItem value="advanced">Advanced</SelectItem>
+                          <SelectItem value="expert">Expert</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="numberOfQuestions"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Questions</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="1" max="20" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="experience"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Years of Experience</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="0" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Technical Requirements */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Technical Requirements</h3>
+              <FormField
+                control={form.control}
+                name="techStack"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tech Stack</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. React, Node.js, TypeScript" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="keySkills"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Key Skills</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Problem Solving, System Design, API Development" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="specificTopics"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Specific Topics (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. State Management, Performance Optimization" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Interview Goals */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Interview Goals</h3>
+              <FormField
+                control={form.control}
+                name="interviewGoals"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Goals & Focus Areas</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="What specific skills or qualities should this interview assess?"
+                        className="min-h-[100px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -296,21 +428,20 @@ const InterviewForm = () => {
           </motion.div>
 
           <motion.div 
-            className="flex gap-4 justify-end pt-4"
+            className="flex gap-4 justify-end"
             variants={itemVariants}
           >
             <Button
               type="button"
               variant="outline"
               onClick={() => navigate("/dashboard/mock-interview")}
-              className="h-12 px-6 text-base hover:bg-secondary/80"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={loading}
-              className="h-12 px-8 text-base bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 transition-all duration-300"
+              className="bg-gradient-to-r from-primary to-purple-600"
             >
               {loading ? (
                 <>
