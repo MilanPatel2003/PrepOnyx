@@ -40,7 +40,7 @@ const InterviewFeedback = () => {
 
         const answersData = answersSnapshot.docs
           .map(doc => ({ ...doc.data(), id: doc.id }))
-          .sort((a, b) => a.questionIndex - b.questionIndex) as UserAnswer[];
+          .sort((a: any, b: any) => (a.questionIndex || 0) - (b.questionIndex || 0)) as UserAnswer[];
         
         setAnswers(answersData);
       } catch (error) {
