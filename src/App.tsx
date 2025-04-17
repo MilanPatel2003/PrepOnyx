@@ -16,7 +16,7 @@ import InterviewFeedback from './pages/dashboard/mock-interview/InterviewFeedbac
 import PdfAnalyzer from './pages/dashboard/pdf-analyzer/PdfAnalyzer'
 import Skribble from './pages/dashboard/SkribbleAI/Skribble'
 import Dashboard from './pages/dashboard/Dashboard'
-
+import Pricing from './pages/Pricing'
 
 // Import your feature pages
 // import MockInterview from '@/pages/dashboard/MockInterview'
@@ -67,6 +67,7 @@ const App = () => {
               <Route path="flashcards" element={<Flashcards />} />
               <Route path="profile" element={<Profile />} /> */}
             </Route>
+            <Route path="pricing" element={<Pricing />} />
           </Route>
         </Routes>
       </Router>
