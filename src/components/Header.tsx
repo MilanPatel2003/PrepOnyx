@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 const publicNavItems = [
   { label: "Home", href: "/" },
   { label: "Features", href: "/#features" },
-  { label: "Pricing", href: "/#pricing" },
+  { label: "Pricing", href: "/pricing" },
 ];
 
 const dashboardItems = [
@@ -28,13 +28,13 @@ const Header = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-4">
+      <div className="container flex h-20 items-center justify-between px-4">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
           <img
-            src="/assets/img/PrepOnyx_New_Logo.svg"
+            src="/assets/img/temp.png"
             alt="PrepOnyx"
-            className="h-10 w-auto md:h-12"
+            className="h-20 w-auto object-contain"
           />
         </Link>
 

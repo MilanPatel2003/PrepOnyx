@@ -17,7 +17,7 @@ export const LoaderPage = ({ className }: { className?: string }) => {
         className="mb-8"
       >
         <img 
-          src="/assets/img/PrepOnyx_New_Logo.svg" 
+          src="/assets/img/temp.png" 
           alt="PrepOnyx" 
           className="h-16 w-auto"
         />

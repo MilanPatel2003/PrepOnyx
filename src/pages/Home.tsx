@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, BookOpen, Brain, FileText, MessageSquare, School } from "lucide-react";
 import { AnimatedGridPattern } from "@/components/ui/AnimatedGridPattern";
 import { Link } from "react-router-dom";
+import PricingCards from "@/components/PricingCards";
 
 // Animation variants
 const containerVariants = {
@@ -123,7 +124,7 @@ const Home = () => {
       </section>
 
       {/* Features Section - Added z-index */}
-      <section className="relative z-10 py-24 bg-background/50">
+      <section className="relative z-30 py-24 bg-background/50">
         <div className="container mx-auto max-w-7xl px-6 lg:px-8">
           <motion.div 
             className="text-center max-w-2xl mx-auto mb-16"
@@ -169,6 +170,16 @@ const Home = () => {
               </motion.div>
             ))}
           </motion.div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="relative z-30 py-24 bg-background/50">
+        <div className="container mx-auto max-w-7xl px-6 lg:px-8">
+          <h2 className="text-3xl font-bold mb-8 text-center bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">Unlock Premium Features — Invest in Your Success</h2>
+          <PricingCards onPlanSelect={(plan) => {
+  alert(`You selected the ${plan.name} plan for ₹${plan.priceMonthly}/month or ₹${plan.priceYearly}/year. Proceeding to checkout will be enabled soon!`);
+}} />
         </div>
       </section>
     </div>

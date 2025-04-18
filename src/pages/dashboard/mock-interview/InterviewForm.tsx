@@ -22,7 +22,7 @@ import { db } from "@/config/firebase.config";
 import { LoaderPage } from "@/pages/LoaderPage";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { llmModels } from "@/llm"; // Import the llmModels
 import {
   Select,
@@ -31,6 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFeatureUsage } from "@/hooks/useFeatureUsage";
+import { trackFeatureUsage } from "@/utils/featureTracker";
 
 const formSchema = z.object({
   position: z.string().min(1, "Position is required"),
@@ -77,6 +79,9 @@ const InterviewForm = () => {
   const { userId } = useAuth();
   const [loading, setLoading] = useState(false);
   const isEditMode = Boolean(id);
+
+  // Use the feature usage hook to check limits
+  const mockInterviewUsage = useFeatureUsage("mockInterview");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -177,6 +182,21 @@ const InterviewForm = () => {
     fetchInterview();
   }, [id, isEditMode, form, navigate]);
 
+  useEffect(() => {
+    if (!isEditMode && !mockInterviewUsage.loading) {
+      if (typeof mockInterviewUsage.limit === "number" && mockInterviewUsage.usage >= mockInterviewUsage.limit) {
+        toast.error(
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span>You've reached your Mock Interview limit. Please upgrade your plan for more interviews.</span>
+          </div>, 
+          { duration: 5000 }
+        );
+        navigate("/dashboard");
+      }
+    }
+  }, [isEditMode, mockInterviewUsage.loading, mockInterviewUsage.usage, mockInterviewUsage.limit, navigate]);
+
   const onSubmit = async (values: FormValues) => {
     if (!userId) return;
 
@@ -192,16 +212,33 @@ const InterviewForm = () => {
       };
 
       if (isEditMode && id) {
-        await updateDoc(doc(db, "interviews", id), interviewData);
+        // Update existing interview
+        await updateDoc(doc(db, "interviews", id!), {
+          ...interviewData,
+          questions,
+          updatedAt: serverTimestamp(),
+        });
         toast.success("Interview updated successfully");
-        navigate(`/dashboard/mock-interview/${id}/feedback`);
       } else {
+        // Create new interview
         const docRef = await addDoc(collection(db, "interviews"), {
           ...interviewData,
+          questions,
+          userId,
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
+        
+        // Track feature usage when creating a new interview
+        await trackFeatureUsage(
+          userId,
+          "mockInterview",
+          "created_mock_interview",
+          { interviewId: docRef.id, position: values.position }
+        );
+        
         toast.success("Interview created successfully");
-        navigate(`/dashboard/mock-interview/${docRef.id}/feedback`);
+        navigate(`/dashboard/mock-interview/${docRef.id}/start`);
       }
     } catch (error) {
       console.error("Error saving interview:", error);

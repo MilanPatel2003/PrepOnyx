@@ -14,6 +14,9 @@ export const EmotionDetector = ({ onEmotionDetected }: EmotionDetectorProps) => 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [_, setCurrentEmotions] = useState<{[key: string]: number}>({});
+
+
 
   useEffect(() => {
     const loadModels = async () => {

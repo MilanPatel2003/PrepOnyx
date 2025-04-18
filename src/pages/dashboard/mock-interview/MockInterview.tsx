@@ -6,6 +6,7 @@ import { db } from "@/config/firebase.config";
 import { useAuth } from "@clerk/clerk-react";
 import { Interview } from "@/types";
 import { FeatureHeader } from "@/components/FeatureHeader";
+import { logUserActivity } from "@/hooks/useUserActivityLogger";
 import { EmptyState } from "@/components/EmptyState";
 import { MessageSquare } from "lucide-react";
 import InterviewCard from "./InterviewCard";
@@ -43,6 +44,8 @@ const MockInterview = () => {
 
   useEffect(() => {
     fetchInterviews();
+    // Log viewing the interview list
+    logUserActivity("view_mock_interview_list");
   }, [fetchInterviews]);
 
   const handleDeleteInterview = async (id: string) => {
@@ -64,6 +67,9 @@ const MockInterview = () => {
       
       // Execute all deletes in one atomic operation
       await batch.commit();
+      
+      // Log interview deletion
+      logUserActivity("delete_mock_interview", { interviewId: id });
       
       // Update local state
       setInterviews(prev => prev.filter(interview => interview.id !== id));
