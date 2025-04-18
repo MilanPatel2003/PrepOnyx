@@ -16,6 +16,8 @@ export const EmotionDetector = ({ onEmotionDetected }: EmotionDetectorProps) => 
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [_, setCurrentEmotions] = useState<{[key: string]: number}>({});
 
+
+
   useEffect(() => {
     const loadModels = async () => {
       try {
@@ -85,7 +87,6 @@ export const EmotionDetector = ({ onEmotionDetected }: EmotionDetectorProps) => 
               return acc;
             }, {} as {[key: string]: number});
 
-            setCurrentEmotions(emotionPercentages);
             onEmotionDetected(emotionPercentages);
           }
         }

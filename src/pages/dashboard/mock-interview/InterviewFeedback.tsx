@@ -39,8 +39,10 @@ const InterviewFeedback = () => {
         setInterview(interviewData);
 
         const answersData = answersSnapshot.docs
+
           .map(doc => ({ ...doc.data(), id: doc.id } as UserAnswer))
           .sort((a, b) => a.questionIndex - b.questionIndex);
+
         
         setAnswers(answersData);
       } catch (error) {
