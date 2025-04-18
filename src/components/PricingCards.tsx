@@ -18,7 +18,7 @@ interface PricingCardsProps {
   onPlanSelect?: (plan: any) => void;
 }
 
-const PricingCards: React.FC<PricingCardsProps> = ({ onPlanSelect }) => {
+const PricingCards: React.FC<PricingCardsProps> = () => {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const { userId } = useAuth();
   const { user } = useUser();
@@ -66,7 +66,7 @@ const PricingCards: React.FC<PricingCardsProps> = ({ onPlanSelect }) => {
       </div>
       <div className="w-full flex justify-center">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl">
-          {plans.map((plan, idx) => {
+          {plans.map((plan) => {
             const price = billing === 'monthly' ? plan.priceMonthly : plan.priceYearly;
             return (
               <Card
