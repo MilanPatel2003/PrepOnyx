@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 const publicNavItems = [
   { label: "Home", href: "/" },
   { label: "Features", href: "/#features" },
-  { label: "Pricing", href: "/#pricing" },
+  { label: "Pricing", href: "/pricing" },
 ];
 
 const dashboardItems = [

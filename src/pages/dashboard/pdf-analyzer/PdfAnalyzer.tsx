@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { logUserActivity } from '@/hooks/useUserActivityLogger';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Award, FileText, RefreshCw, Upload } from 'lucide-react';
+import { FileText, RefreshCw, Upload, AlertTriangle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FeatureHeader } from "@/components/FeatureHeader";
 import { llmModels } from "@/llm";
+import { useFeatureUsage } from "@/hooks/useFeatureUsage";
+import { trackFeatureUsage } from "@/utils/featureTracker";
+import { useAuth } from "@clerk/clerk-react";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const PDFAnalyzer: React.FC = () => {
   const [summary, setSummary] = useState<string>('');
@@ -15,12 +21,47 @@ const PDFAnalyzer: React.FC = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [results, setResults] = useState<{ score: number; totalQuestions: number } | null>(null);
+  const { userId } = useAuth();
+  const navigate = useNavigate();
+  
+  // Use the feature usage hook to check limits
+  const pdfAnalyzeUsage = useFeatureUsage("pdfAnalyze");
+  
+  // Check if user has reached their feature limit
+  useEffect(() => {
+    if (!pdfAnalyzeUsage.loading) {
+      if (typeof pdfAnalyzeUsage.limit === "number" && pdfAnalyzeUsage.usage >= pdfAnalyzeUsage.limit) {
+        toast.error(
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span>You've reached your PDF Analysis limit. Please upgrade your plan for more analyses.</span>
+          </div>, 
+          { duration: 5000 }
+        );
+        navigate("/dashboard");
+      }
+    }
+  }, [pdfAnalyzeUsage.loading, pdfAnalyzeUsage.usage, pdfAnalyzeUsage.limit, navigate]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    
+    // Check if user has reached their feature limit before processing
+    if (typeof pdfAnalyzeUsage.limit === "number" && pdfAnalyzeUsage.usage >= pdfAnalyzeUsage.limit) {
+      toast.error(
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4" />
+          <span>You've reached your PDF Analysis limit. Please upgrade your plan for more analyses.</span>
+        </div>, 
+        { duration: 5000 }
+      );
+      return;
+    }
 
     setIsLoading(true);
+    // Log PDF upload action
+    logUserActivity('upload_pdf', { fileName: file.name });
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -79,20 +120,36 @@ const PDFAnalyzer: React.FC = () => {
 
       console.log('Full Response Text:', text);
 
-      const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
-      const parsedResponse = JSON.parse(cleanedText);
+      try {
+        const jsonStartIndex = text.indexOf('{');
+        const jsonEndIndex = text.lastIndexOf('}') + 1;
+        const jsonString = text.substring(jsonStartIndex, jsonEndIndex);
+        const data = JSON.parse(jsonString);
 
-      const cleanSummary = parsedResponse.SUMMARY.trim();
-      setSummary(cleanSummary);
-
-      const parsedQuestions = parsedResponse.QUESTIONS;
-      setQuestions(parsedQuestions);
-
+        setSummary(data.SUMMARY);
+        setQuestions(data.QUESTIONS);
+        
+        // Log successful analysis and track feature usage
+        logUserActivity('pdf_analysis_complete', { fileName: file.name });
+        
+        // Track feature usage in Firestore
+        if (userId) {
+          await trackFeatureUsage(
+            userId,
+            "pdfAnalyze",
+            "analyzed_pdf",
+            { fileName: file.name }
+          );
+        }
+      } catch (error) {
+        console.error('Error parsing JSON:', error);
+        setSummary('Error analyzing PDF. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
     } catch (error) {
       console.error('Error processing PDF:', error);
       alert('Error processing PDF. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -120,6 +177,28 @@ const PDFAnalyzer: React.FC = () => {
       totalQuestions: questions.length
     });
     setQuizStarted(false);
+  };
+
+  const handleStartQuiz = () => {
+    // Check if user has reached their feature limit before starting quiz
+    if (typeof pdfAnalyzeUsage.limit === "number" && pdfAnalyzeUsage.usage >= pdfAnalyzeUsage.limit) {
+      toast.error(
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4" />
+          <span>You've reached your PDF Analysis limit. Please upgrade your plan for more analyses.</span>
+        </div>, 
+        { duration: 5000 }
+      );
+      return;
+    }
+    
+    setQuizStarted(true);
+    setCurrentQuestion(0);
+    setAnswers([]);
+    setResults(null);
+    
+    // Log quiz started
+    logUserActivity('start_pdf_quiz', { questionCount: questions.length });
   };
 
   const handleRetry = () => {
@@ -207,14 +286,17 @@ const PDFAnalyzer: React.FC = () => {
       </Card>
 
       {questions.length > 0 && !quizStarted && !results && (
-        <Button 
-          onClick={() => setQuizStarted(true)}
-          className="w-full mb-8"
-          size="lg"
-        >
-          Begin Assessment
-          <Award className="ml-2 h-4 w-4" />
-        </Button>
+        <div className="flex justify-center mt-4">
+          <Button 
+            onClick={handleStartQuiz} 
+            className="w-full sm:w-auto"
+            disabled={typeof pdfAnalyzeUsage.limit === "number" && pdfAnalyzeUsage.usage >= pdfAnalyzeUsage.limit}
+          >
+            {typeof pdfAnalyzeUsage.limit === "number" && pdfAnalyzeUsage.usage >= pdfAnalyzeUsage.limit 
+              ? "Usage Limit Reached" 
+              : "Start Quiz"}
+          </Button>
+        </div>
       )}
 
       {quizStarted && questions[currentQuestion] && (
@@ -263,10 +345,14 @@ const PDFAnalyzer: React.FC = () => {
       {results && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="h-6 w-6" />
-              Quiz Results
-            </CardTitle>
+            <div className="flex justify-center mt-4">
+            <Button 
+              onClick={handleRetry} 
+              className="w-full sm:w-auto"
+            >
+              Try Again
+            </Button>
+          </div>
           </CardHeader>
           <CardContent className="text-center">
             <div className="mb-6">

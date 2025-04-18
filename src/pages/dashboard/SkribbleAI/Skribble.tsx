@@ -1,4 +1,5 @@
 import React from 'react';
+import { logUserActivity } from '@/hooks/useUserActivityLogger';
 import { useState, useRef, useEffect } from 'react';
 import { Stage, Layer, Line, Rect, Circle } from 'react-konva';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -7,6 +8,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { useFeatureUsage } from "@/hooks/useFeatureUsage";
+import { trackFeatureUsage } from "@/utils/featureTracker";
+import { useAuth } from "@clerk/clerk-react";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import {
   Calculator,
   Eraser,
@@ -23,7 +29,8 @@ import {
   ArrowRight,
   Plus,
   X,
-  Brain
+  Brain,
+  AlertTriangle
 } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import Draggable from 'react-draggable';
@@ -51,34 +58,34 @@ const TOOLS: { id: Tool; icon: React.ReactNode; label: string }[] = [
 
 const BRUSH_SIZES = [2, 4, 6, 8, 12, 16, 20];
 
-const resizeImage = async (base64Str: string, maxWidth = 1024, maxHeight = 1024): Promise<string> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = base64Str;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
+// const resizeImage = async (base64Str: string, maxWidth = 1024, maxHeight = 1024): Promise<string> => {
+//   return new Promise((resolve) => {
+//     const img = new Image();
+//     img.src = base64Str;
+//     img.onload = () => {
+//       const canvas = document.createElement('canvas');
+//       let width = img.width;
+//       let height = img.height;
 
-      if (width > height) {
-        if (width > maxWidth) {
-          height *= maxWidth / width;
-          width = maxWidth;
-        }
-      } else {
-        if (height > maxHeight) {
-          width *= maxHeight / height;
-          height = maxHeight;
-        }
-      }
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL());
-    };
-  });
-};
+//       if (width > height) {
+//         if (width > maxWidth) {
+//           height *= maxWidth / width;
+//           width = maxWidth;
+//         }
+//       } else {
+//         if (height > maxHeight) {
+//           width *= maxHeight / height;
+//           height = maxHeight;
+//         }
+//       }
+//       canvas.width = width;
+//       canvas.height = height;
+//       const ctx = canvas.getContext('2d');
+//       ctx?.drawImage(img, 0, 0, width, height);
+//       resolve(canvas.toDataURL());
+//     };
+//   });
+// };
 
 const preprocessImage = async (base64Str: string): Promise<string> => {
   return new Promise((resolve) => {
@@ -218,6 +225,27 @@ export default function Skribble() {
   const [stagePosition, setStagePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const lastCenter = useRef<{ x: number; y: number } | null>(null);
   const lastDist = useRef<number>(0);
+  const { userId } = useAuth();
+  const navigate = useNavigate();
+  
+  // Use the feature usage hook to check limits
+  const skribbleAIUsage = useFeatureUsage("skribbleAI");
+
+  // Check if user has reached their feature limit
+  useEffect(() => {
+    if (!skribbleAIUsage.loading) {
+      if (typeof skribbleAIUsage.limit === "number" && skribbleAIUsage.usage >= skribbleAIUsage.limit) {
+        toast.error(
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span>You've reached your SkribbleAI limit. Please upgrade your plan for more usage.</span>
+          </div>, 
+          { duration: 5000 }
+        );
+        navigate("/dashboard");
+      }
+    }
+  }, [skribbleAIUsage.loading, skribbleAIUsage.usage, skribbleAIUsage.limit, navigate]);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -367,16 +395,33 @@ export default function Skribble() {
   };
 
   const calculateResult = async () => {
-    try {
-      setIsCalculating(true);
-      const stage = stageRef.current;
-      if (!stage) return;
+    if (shapes.length === 0) {
+      alert('Please draw something first');
+      return;
+    }
+    
+    // Check if user has reached their feature limit before processing
+    if (typeof skribbleAIUsage.limit === "number" && skribbleAIUsage.usage >= skribbleAIUsage.limit) {
+      toast.error(
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4" />
+          <span>You've reached your SkribbleAI limit. Please upgrade your plan for more usage.</span>
+        </div>, 
+        { duration: 5000 }
+      );
+      return;
+    }
 
-      // Get stage data and preprocess it
-      let imageData = stage.toDataURL();
-      imageData = await resizeImage(imageData);
-      imageData = await preprocessImage(imageData);
-      const base64Data = imageData.split(',')[1];
+    setIsCalculating(true);
+    logUserActivity('solve_equation');
+
+    try {
+      // Capture the current stage as an image
+      const uri = stageRef.current.toDataURL();
+      
+      // Preprocess the image for better recognition
+      const processedImage = await preprocessImage(uri);
+      const base64Data = processedImage.split(',')[1];
 
       // Enhanced prompt for better mathematical analysis
       const prompt = `You are a highly specialized mathematical expression analyzer with expertise in handwritten mathematics recognition. Analyze the provided image with these specific guidelines:
@@ -489,6 +534,24 @@ export default function Skribble() {
         });
 
         setResults(formattedResults);
+        // Log Skribble AI calculation activity
+        logUserActivity('skribble_ai_calculate', {
+          expressionCount: formattedResults.length,
+          firstExpression: formattedResults[0]?.expr
+        });
+        
+        // Track feature usage in Firestore
+        if (userId) {
+          await trackFeatureUsage(
+            userId,
+            "skribbleAI",
+            "solved_equation",
+            { 
+              expressionCount: formattedResults.length,
+              firstExpression: formattedResults[0]?.expr 
+            }
+          );
+        }
       } catch (parseError) {
         console.error('Parse error:', parseError);
         setResults([{

@@ -6,15 +6,16 @@ import { db } from '@/config/firebase.config';
 import { Interview as InterviewType, UserAnswer } from '@/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, Video, VideoOff, Loader2, MessageSquare, Lightbulb, CheckCircle2, Star } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Loader2, MessageSquare, Lightbulb, CheckCircle2, Star, AlertTriangle } from 'lucide-react';
 import { LoaderPage } from '@/pages/LoaderPage';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import {  useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { toast } from 'sonner';
 import { llmModels } from '@/llm';
 import { EmotionDetector } from '@/components/EmotionDetector';
 import { Progress } from '@/components/ui/progress';
-
+import { trackFeatureUsage } from '@/utils/featureTracker';
+import { useFeatureUsage } from '@/hooks/useFeatureUsage';
 
 // Define types for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -134,6 +135,10 @@ const StartInterview = () => {
     engagement: 0
   });
   const { user } = useUser();
+  const { userId } = useAuth();
+  
+  // Use the feature usage hook to check limits
+  const mockInterviewUsage = useFeatureUsage("mockInterview");
   
   const synthRef = useRef<SpeechSynthesis | null>(null);
 
@@ -144,9 +149,25 @@ const StartInterview = () => {
     browserSupportsSpeechRecognition
   } = useSpeechRecognition();
 
-  const [highlightedWords, setHighlightedWords] = useState<string[]>([]);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [_, setHighlightedWords] = useState<string[]>([]);
+  const [__, setIsSpeaking] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
+
+  // Check if user has reached their feature limit
+  useEffect(() => {
+    if (!mockInterviewUsage.loading) {
+      if (typeof mockInterviewUsage.limit === "number" && mockInterviewUsage.usage >= mockInterviewUsage.limit) {
+        toast.error(
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span>You've reached your Mock Interview limit. Please upgrade your plan for more interviews.</span>
+          </div>, 
+          { duration: 5000 }
+        );
+        navigate("/dashboard");
+      }
+    }
+  }, [mockInterviewUsage.loading, mockInterviewUsage.usage, mockInterviewUsage.limit, navigate]);
 
   // Simplified fetch interview
   useEffect(() => {
@@ -156,6 +177,16 @@ const StartInterview = () => {
         const docSnap = await getDoc(doc(db, "interviews", id));
         if (docSnap.exists()) {
           setInterview({ id: docSnap.id, ...docSnap.data() } as InterviewType);
+          
+          // Track feature usage when starting an interview
+          if (userId) {
+            await trackFeatureUsage(
+              userId,
+              "mockInterview",
+              "started_mock_interview",
+              { interviewId: id }
+            );
+          }
         } else {
           toast.error("Interview not found");
           navigate("/dashboard/mock-interview");
@@ -588,3 +619,4 @@ const StartInterview = () => {
 };
 
 export default StartInterview;
+
