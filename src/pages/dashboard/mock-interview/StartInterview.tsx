@@ -4,13 +4,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, addDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase.config';
 import { Interview as InterviewType, UserAnswer } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
 import { Mic, MicOff, Video, VideoOff, Loader2, MessageSquare, Lightbulb, CheckCircle2, Star, AlertTriangle } from 'lucide-react';
-
-import { Badge } from '@/components/ui/badge';
-
 import { LoaderPage } from '@/pages/LoaderPage';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { useUser } from '@clerk/clerk-react';
@@ -460,21 +456,13 @@ const StartInterview = () => {
             {/* Question Display */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Question {currentQuestionIndex + 1}</span>
-                  {isSpeaking && <Badge variant="secondary">Speaking...</Badge>}
-                </CardTitle>
+                <h2 className="text-2xl font-bold">
+                  Question {currentQuestionIndex + 1} of {interview.questions.length}
+                </h2>
               </CardHeader>
               <CardContent>
-                <p className="text-lg">
-                  {interview?.questions[currentQuestionIndex]?.question.split(' ').map((word, index) => (
-                    <span
-                      key={index}
-                      className={highlightedWords.includes(word) ? "text-primary" : "text-muted-foreground"}
-                    >
-                      {word}{' '}
-                    </span>
-                  ))}
+                <p className="text-lg whitespace-pre-wrap">
+                  {interview.questions[currentQuestionIndex]?.question}
                 </p>
               </CardContent>
             </Card>
