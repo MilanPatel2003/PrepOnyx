@@ -22,8 +22,8 @@ import { UserInitializer } from './components/UserInitializer'
 // Import your feature pages
 // import MockInterview from '@/pages/dashboard/MockInterview'
 // import PdfAnalyzer from '@/pages/dashboard/PdfAnalyzer'
-// import CourseGenerator from '@/pages/dashboard/CourseGenerator'
-// import Flashcards from '@/pages/dashboard/Flashcards'
+import CourseGenerator from '@/pages/dashboard/CourseGenerator'
+import FlashCardGenerator from './pages/dashboard/FlashCardGenerator'
 // import Profile from '@/pages/dashboard/Profile'
 
 const App = () => {
@@ -66,9 +66,9 @@ const App = () => {
                 <Route path=":id/loadpage" element={<StartInterviewLoadPage />} /> 
               </Route>
               <Route path="pdf-analyzer" element={<PdfAnalyzer />} />
-              {/* <Route path="course-generator" element={<CourseGenerator />} />
-              <Route path="flashcards" element={<Flashcards />} />
-              <Route path="profile" element={<Profile />} /> */}
+             <Route path="course-generator" element={<CourseGenerator />} />
+              <Route path="flashcards" element={<FlashCardGenerator />} />
+               {/* <Route path="profile" element={<Profile />} /> */}
             </Route>
             <Route path="pricing" element={<Pricing />} />
           </Route>

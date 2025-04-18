@@ -9,12 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Video, VideoOff, Loader2, MessageSquare, Lightbulb, CheckCircle2, Star, AlertTriangle } from 'lucide-react';
 import { LoaderPage } from '@/pages/LoaderPage';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import { useUser, useAuth } from '@clerk/clerk-react';
+import { useUser } from '@clerk/clerk-react';
 import { toast } from 'sonner';
 import { llmModels } from '@/llm';
 import { EmotionDetector } from '@/components/EmotionDetector';
 import { Progress } from '@/components/ui/progress';
-import { trackFeatureUsage } from '@/utils/featureTracker';
 import { useFeatureUsage } from '@/hooks/useFeatureUsage';
 
 // Define types for Web Speech API
@@ -135,7 +134,6 @@ const StartInterview = () => {
     engagement: 0
   });
   const { user } = useUser();
-  const { userId } = useAuth();
   
   // Use the feature usage hook to check limits
   const mockInterviewUsage = useFeatureUsage("mockInterview");
@@ -178,15 +176,7 @@ const StartInterview = () => {
         if (docSnap.exists()) {
           setInterview({ id: docSnap.id, ...docSnap.data() } as InterviewType);
           
-          // Track feature usage when starting an interview
-          if (userId) {
-            await trackFeatureUsage(
-              userId,
-              "mockInterview",
-              "started_mock_interview",
-              { interviewId: id }
-            );
-          }
+
         } else {
           toast.error("Interview not found");
           navigate("/dashboard/mock-interview");
